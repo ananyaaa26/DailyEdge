@@ -1,9 +1,7 @@
-const axios = require('axios');
-const https = require('https');
+const axios = require('axios'); //Used to send GET/POST requests to external APIs.
+const https = require('https'); //A built-in Node.js core module for making secure HTTPS requests.
 
-// Create an HTTPS agent that ignores self-signed or expired certificates
-// This is generally not recommended, but is useful for local development
-// or when an external API temporarily has certificate issues.
+
 const agent = new https.Agent({
   rejectUnauthorized: false
 });

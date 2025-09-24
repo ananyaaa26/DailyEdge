@@ -71,3 +71,27 @@ app.use((err, req, res, next) => {
 app.listen(PORT, () => {
     console.log(`🚀 Server is running on http://localhost:${PORT}`);
 });
+
+/*
+How the files work together (execution order at runtime)
+
+node src/app.js starts Express.
+
+Middleware (session, body-parser, static files) loads.
+
+Routes (src/routes/*.js) register.
+
+When a request comes in (say /habits/add):
+
+Express matches the route → calls controller (habitController.addHabit).
+
+Controller queries DB via db.query() (src/models/db.js).
+
+Controller passes results to EJS view (src/views/pages/*.ejs).
+
+EJS template renders HTML using CSS/JS from src/public/.
+
+Response sent to browser.
+
+Extras: cron jobs (in app.js), CLI (src/cli.js), seeding scripts (insert_challenges.js) run outside the main flow.
+*/
