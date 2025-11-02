@@ -1,0 +1,73 @@
+<%- include('../partials/header') %>
+
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-body p-5">
+                <h2 class="card-title text-center mb-4">Welcome Back!</h2>
+                <form action="/login" method="POST" id="loginForm">
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email address</label>
+                        <input type="email" class="form-control" id="email" name="email" required>
+                        <div class="form-feedback" id="emailFeedback"></div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Password</label>
+                        <input type="password" class="form-control" id="password" name="password" required>
+                        <div class="form-feedback" id="passwordFeedback"></div>
+                    </div>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary btn-lg form-submit-btn action-btn-enhanced" id="loginBtn">
+                            <span class="btn-text">Login</span>
+                            <div class="btn-spinner"></div>
+                        </button>
+                    </div>
+                </form>
+
+                <script>
+                document.getElementById('loginForm').addEventListener('submit', function(e) {
+                    const submitBtn = document.getElementById('loginBtn');
+                    
+                    // Add loading state
+                    submitBtn.classList.add('loading');
+                    submitBtn.disabled = true;
+                    
+                    // Form will submit normally, loading state will show during redirect
+                });
+
+                // Add real-time validation feedback
+                document.getElementById('email').addEventListener('input', function(e) {
+                    const feedback = document.getElementById('emailFeedback');
+                    if (this.value && this.validity.valid) {
+                        feedback.innerHTML = '<span class="form-feedback-icon">✓</span> Valid email';
+                        feedback.className = 'form-feedback success';
+                    } else if (this.value && !this.validity.valid) {
+                        feedback.innerHTML = '<span class="form-feedback-icon">✗</span> Invalid email format';
+                        feedback.className = 'form-feedback error';
+                    } else {
+                        feedback.innerHTML = '';
+                        feedback.className = 'form-feedback';
+                    }
+                });
+
+                document.getElementById('password').addEventListener('input', function(e) {
+                    const feedback = document.getElementById('passwordFeedback');
+                    if (this.value.length >= 6) {
+                        feedback.innerHTML = '<span class="form-feedback-icon">✓</span> Password looks good';
+                        feedback.className = 'form-feedback success';
+                    } else if (this.value.length > 0) {
+                        feedback.innerHTML = '<span class="form-feedback-icon">⚠</span> Password too short';
+                        feedback.className = 'form-feedback error';
+                    } else {
+                        feedback.innerHTML = '';
+                        feedback.className = 'form-feedback';
+                    }
+                });
+                </script>
+                <p class="text-center mt-3">Don't have an account? <a href="/signup">Sign Up</a></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<%- include('../partials/footer') %>

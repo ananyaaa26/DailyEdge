@@ -1,0 +1,362 @@
+<%- include('../partials/header') %>
+
+<div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-5 animation-fadeInUp">
+    <div>
+        <h1 class="display-6 fw-bold mb-2">📊 Analytics Dashboard</h1>
+        <p class="text-secondary">Comprehensive insights into your habit building journey</p>
+    </div>
+    <a href="/dashboard" class="btn btn-outline-primary interactive mt-3 mt-sm-0" role="button">
+        <span class="me-2">←</span>Back to Dashboard
+    </a>
+</div>
+
+<!-- Overview Stats Row -->
+<div class="row g-4 mb-5">
+    <div class="col-lg-3 col-md-6">
+        <div class="card h-100 animation-slideUp hover-lift">
+            <div class="card-body text-center p-4">
+                <h5 class="card-title fw-semibold">Total Habits</h5>
+                <p class="card-text display-6 fw-bold mb-2"><%= totalHabits %></p>
+                <p class="card-text opacity-75">Active habits tracked</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6">
+        <div class="card h-100 animation-slideUp hover-lift" style="animation-delay: 0.1s;">
+            <div class="card-body text-center p-4">
+                <h5 class="card-title fw-semibold">Total Completions</h5>
+                <p class="card-text display-6 fw-bold mb-2"><%= totalCompletions %></p>
+                <p class="card-text opacity-75">All-time completed tasks</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-3 col-md-6">
+        <div class="card h-100 animation-slideUp hover-lift" style="animation-delay: 0.2s;">
+            <div class="card-body text-center p-4">
+                <h5 class="card-title fw-semibold">Longest Streak</h5>
+                <p class="card-text display-6 fw-bold mb-2"><%= longestStreak %></p>
+                <p class="card-text opacity-75">
+                    <% if (longestStreakHabit && longestStreakHabit !== 'N/A') { %>
+                        <%= longestStreakHabit %>
+                    <% } else { %>
+                        Start your streak!
+                    <% } %>
+                </p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6">
+        <div class="card h-100 animation-slideUp hover-lift" style="animation-delay: 0.3s;">
+            <div class="card-body text-center p-4">
+                <h5 class="card-title fw-semibold">Your XP</h5>
+                <p class="card-text display-6 fw-bold mb-2"><%= user.xp || 0 %></p>
+                <p class="card-text opacity-75">Experience points earned</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Today's Progress -->
+<div class="row g-4 mb-5">
+    <div class="col-lg-8">
+        <div class="card glass-effect h-100 animation-fadeInUp">
+            <div class="card-body p-4">
+                <h4 class="card-title fw-semibold mb-4">Today's Progress</h4>
+                <div class="row g-3 mb-4">
+                    <div class="col-md-4 text-center">
+                        <div class="progress-circle mx-auto mb-3" style="--progress: <%= todayStats.completionRate %>%;">
+                            <span class="progress-text"><%= todayStats.completionRate %>%</span>
+                        </div>
+                        <h6 class="fw-semibold">Completion Rate</h6>
+                        <small class="text-secondary"><%= todayStats.completed %>/<%= todayStats.total %> habits done</small>
+                    </div>
+                    <div class="col-md-4 text-center">
+                        <div class="display-4 mb-3 text-primary"></div>
+                        <h6 class="fw-semibold">Most Productive</h6>
+                        <p class="mb-0"><%= mostProductiveDay !== 'N/A' ? mostProductiveDay : 'Building data...' %></p>
+                    </div>
+                    <div class="col-md-4 text-center">
+                        <div class="display-4 mb-3 text-warning"></div>
+                        <h6 class="fw-semibold">Badges Earned</h6>
+                        <p class="mb-0"><%= badges.length %> achievements</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card glass-effect h-100 animation-fadeInUp" style="animation-delay: 0.1s;">
+            <div class="card-body p-4">
+                <h5 class="card-title fw-semibold mb-4">This Week</h5>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <span class="text-secondary">Active Days</span>
+                    <span class="badge bg-primary fs-6"><%= weeklyStats.activeDays %>/7</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <span class="text-secondary">Total Completions</span>
+                    <span class="fw-bold text-success"><%= weeklyStats.totalCompletions %></span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="text-secondary">Habits Worked On</span>
+                    <span class="fw-bold text-info"><%= weeklyStats.habitsWorkedOn %></span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="row g-4 mb-5">
+    <div class="col-lg-8">
+        <div class="card glass-effect animation-fadeInUp">
+            <div class="card-body p-4">
+                <div class="d-flex align-items-center mb-4">
+                    <h4 class="card-title fw-semibold mb-0">30-Day Completion Trend</h4>
+                    <span class="badge bg-secondary ms-2">Last 30 Days</span>
+                </div>
+                <div class="chart-container" style="position: relative; height: 350px;">
+                    <canvas id="completionChart" class="w-100"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card glass-effect animation-fadeInUp" style="animation-delay: 0.1s;">
+            <div class="card-body p-4">
+                <h4 class="card-title fw-semibold mb-4">Habit Categories</h4>
+                <div class="chart-container" style="position: relative; height: 350px;">
+                    <canvas id="categoryChart" class="w-100"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Habits Performance Table -->
+<% if (habits && habits.length > 0) { %>
+<div class="card glass-effect mb-5 animation-fadeInUp">
+    <div class="card-body p-4">
+    <h4 class="card-title fw-semibold mb-4">Habit Performance</h4>
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Habit Name</th>
+                        <th>Category</th>
+                        <th>Current Streak</th>
+                        <th>Total Completions</th>
+                        <th>Active Days</th>
+                        <th>Created</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% habits.forEach((habit, index) => { %>
+                    <tr style="animation-delay: <%= index * 0.05 %>s;" class="animation-slideUp">
+                        <td class="fw-semibold"><%= habit.name %></td>
+                        <td>
+                            <span class="badge bg-light text-dark"><%= habit.category || 'General' %></span>
+                        </td>
+                        <td>
+                                <% if (habit.streak > 0) { %>
+                                <span class="text-success fw-bold"><%= habit.streak %> days</span>
+                            <% } else { %>
+                                <span class="text-secondary">0 days</span>
+                            <% } %>
+                        </td>
+                        <td><span class="fw-bold text-primary"><%= habit.total_completions %></span></td>
+                        <td><%= habit.active_days %></td>
+                        <td class="text-secondary">
+                            <%= new Date(habit.created_at).toLocaleDateString('en-US', { 
+                                month: 'short', 
+                                day: 'numeric' 
+                            }) %>
+                        </td>
+                    </tr>
+                    <% }); %>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+<% } %>
+
+<!-- Badges Section -->
+<% if (badges.length > 0) { %>
+<div class="card glass-effect mb-5 animation-fadeInUp">
+    <div class="card-body p-4">
+    <h4 class="card-title fw-semibold mb-4">Achievement Gallery</h4>
+        <div class="row g-3">
+            <% badges.forEach((badge, index) => { %>
+                <div class="col-lg-4 col-md-6">
+                    <div class="card border-0 bg-light hover-lift" style="animation-delay: <%= index * 0.1 %>s;">
+                        <div class="card-body p-3">
+                            <div class="d-flex align-items-center">
+                                <div class="display-6 me-3"></div>
+                                <div>
+                                    <h6 class="fw-semibold mb-1"><%= badge.badge_name %></h6>
+                                    <small class="text-secondary">
+                                        <%= new Date(badge.earned_at).toLocaleDateString('en-US', { 
+                                            year: 'numeric', 
+                                            month: 'long', 
+                                            day: 'numeric' 
+                                        }) %>
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            <% }); %>
+        </div>
+    </div>
+</div>
+<% } else { %>
+        <div class="card glass-effect mb-5 animation-scaleIn">
+    <div class="card-body text-center p-5">
+        <div class="display-1 mb-4"></div>
+        <h4 class="fw-semibold mb-3">Ready to Earn Your First Badge?</h4>
+        <p class="text-secondary mb-4">
+            Complete habits consistently to unlock achievement badges. Your journey to success starts with a single step!
+        </p>
+        <a href="/dashboard" class="btn btn-primary btn-lg interactive" role="button">
+            Start Building Habits
+        </a>
+    </div>
+</div>
+<% } %>
+
+<!-- Motivation Section -->
+<div class="card glass-effect animation-fadeInUp">
+    <div class="card-body text-center p-5">
+        <div class="row align-items-center">
+            <div class="col-md-8 mx-auto">
+                <h4 class="fw-semibold mb-3">Daily Inspiration</h4>
+                <p class="text-secondary mb-4 fs-5">
+                    "Success is the sum of small efforts, repeated day in and day out. Your consistency today shapes your success tomorrow."
+                </p>
+                <div class="d-flex justify-content-center gap-3">
+                    <a href="/dashboard" class="btn btn-primary interactive">Continue Journey</a>
+                    <a href="/add-habit" class="btn btn-outline-primary interactive">Add New Habit</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chart.js and Custom Analytics Script -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Chart data from server
+const chartData = <%- JSON.stringify(chartData) %>;
+const categoryStats = <%- JSON.stringify(categoryStats) %>;
+
+// Completion Trend Chart
+const ctx = document.getElementById('completionChart').getContext('2d');
+new Chart(ctx, {
+    type: 'line',
+    data: {
+        labels: chartData.map(d => new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })),
+        datasets: [{
+            label: 'Daily Completions',
+            data: chartData.map(d => d.completions),
+            borderColor: '#4facfe',
+            backgroundColor: 'rgba(79, 172, 254, 0.1)',
+            borderWidth: 3,
+            fill: true,
+            tension: 0.4,
+            pointBackgroundColor: '#4facfe',
+            pointBorderColor: '#ffffff',
+            pointBorderWidth: 2,
+            pointRadius: 5
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                display: false
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                grid: {
+                    color: 'rgba(0,0,0,0.1)'
+                }
+            },
+            x: {
+                grid: {
+                    color: 'rgba(0,0,0,0.1)'
+                }
+            }
+        }
+    }
+});
+
+// Category Chart
+const categoryCtx = document.getElementById('categoryChart').getContext('2d');
+new Chart(categoryCtx, {
+    type: 'doughnut',
+    data: {
+        labels: categoryStats.map(c => c.category || 'General'),
+        datasets: [{
+            data: categoryStats.map(c => c.completions),
+            backgroundColor: [
+                '#667eea',
+                '#f093fb',
+                '#4facfe',
+                '#fa709a',
+                '#ffecd2',
+                '#fcb69f'
+            ],
+            borderWidth: 0
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom'
+            }
+        }
+    }
+});
+</script>
+
+<!-- Custom CSS for Progress Circle -->
+<style>
+.progress-circle {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: conic-gradient(from 0deg, #4facfe 0deg, #4facfe calc(var(--progress) * 3.6deg), #e9ecef calc(var(--progress) * 3.6deg), #e9ecef 360deg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+.progress-circle::before {
+    content: '';
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: white;
+    position: absolute;
+}
+
+.progress-text {
+    position: relative;
+    z-index: 1;
+    font-weight: bold;
+    font-size: 14px;
+    color: #333;
+}
+</style>
+
+<%- include('../partials/footer') %>

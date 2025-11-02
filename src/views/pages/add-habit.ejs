@@ -1,0 +1,145 @@
+<%- include('../partials/header') %>
+
+<div class="row justify-content-center animation-fadeInUp">
+    <div class="col-lg-8 col-xl-6">
+        <div class="card glass-effect">
+            <div class="card-body p-5">
+                <div class="text-center mb-5">
+                    <h1 class="display-6 fw-bold mb-2">
+                        <%= habit ? 'Edit Your Habit' : 'Create a New Habit' %>
+                    </h1>
+                    <p class="text-secondary">
+                        <% if (habit) { %>
+                            Update your habit details to keep improving
+                        <% } else { %>
+                            Small consistent actions lead to big transformations
+                        <% } %>
+                    </p>
+                </div>
+
+                <form action="<%= habit ? '/habits/edit/' + habit.id : '/habits/add' %>" method="POST" class="needs-validation" novalidate>
+                    <div class="mb-4">
+                        <label for="name" class="form-label">
+                            <span class="fw-semibold">Habit Name</span>
+                            <span class="text-danger">*</span>
+                        </label>
+                        <input type="text" 
+                               class="form-control form-control-lg" 
+                               id="name" 
+                               name="name" 
+                               value="<%= habit ? habit.name : '' %>" 
+                               required 
+                               placeholder="e.g., Drink 8 glasses of water"
+                               maxlength="100">
+                        <div class="form-text">Give your habit a clear, specific name</div>
+                        <div class="invalid-feedback">
+                            Please provide a habit name.
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="category" class="form-label">
+                            <span class="fw-semibold">Category</span>
+                            <span class="text-danger">*</span>
+                        </label>
+                        <select class="form-select form-select-lg" id="category" name="category" required>
+                            <option value="" disabled <%= !habit ? 'selected' : '' %>>Choose a category...</option>
+                            <% const categories = [
+                                { value: 'Health', icon: '🏥', description: 'Physical and mental wellness' },
+                                { value: 'Fitness', icon: '💪', description: 'Exercise and physical activity' },
+                                { value: 'Study', icon: '📚', description: 'Learning and education' },
+                                { value: 'Productivity', icon: '⚡', description: 'Work and efficiency' },
+                                { value: 'Mindfulness', icon: '🧘', description: 'Mental clarity and peace' }
+                            ]; %>
+                            <% categories.forEach(cat => { %>
+                                <option value="<%= cat.value %>" 
+                                        <%= (habit && habit.category === cat.value) ? 'selected' : '' %>>
+                                    <%= cat.icon %> <%= cat.value %>
+                                </option>
+                            <% }); %>
+                        </select>
+                        <div class="form-text">Categories help organize and track different types of habits</div>
+                        <div class="invalid-feedback">
+                            Please select a category.
+                        </div>
+                    </div>
+
+                    <div class="mb-5">
+                        <label for="frequency" class="form-label">
+                            <span class="fw-semibold">Frequency</span>
+                            <span class="text-danger">*</span>
+                        </label>
+                        <input type="text" 
+                               class="form-control form-control-lg" 
+                               id="frequency" 
+                               name="frequency" 
+                               value="<%= habit ? habit.frequency : 'Daily' %>" 
+                               required
+                               placeholder="Daily, Weekly, etc."
+                               maxlength="50">
+                        <div class="form-text">How often do you want to perform this habit?</div>
+                        <div class="invalid-feedback">
+                            Please specify the frequency.
+                        </div>
+                    </div>
+
+                    <div class="d-flex flex-column flex-sm-row gap-3">
+                        <button type="submit" class="btn btn-primary btn-lg interactive flex-fill">
+                            <% if (habit) { %>
+                                Update Habit
+                            <% } else { %>
+                                Create Habit
+                            <% } %>
+                        </button>
+                        <a href="/dashboard" class="btn btn-outline-secondary btn-lg hover-lift flex-fill" role="button">
+                            <span class="me-2">←</span>Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <% if (!habit) { %>
+        <div class="card glass-effect mt-4 animation-slideUp">
+            <div class="card-body p-4">
+                <h5 class="fw-semibold mb-3">Tips for Success</h5>
+                <ul class="list-unstyled mb-0">
+                    <li class="d-flex align-items-start mb-2">
+                        <span class="badge bg-primary rounded-pill me-3 mt-1">1</span>
+                        <span>Start small - it's easier to be consistent with simple habits</span>
+                    </li>
+                    <li class="d-flex align-items-start mb-2">
+                        <span class="badge bg-primary rounded-pill me-3 mt-1">2</span>
+                        <span>Be specific - "Exercise for 30 minutes" is better than "Exercise"</span>
+                    </li>
+                    <li class="d-flex align-items-start">
+                        <span class="badge bg-primary rounded-pill me-3 mt-1">3</span>
+                        <span>Stack habits - attach new habits to existing routines</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+        <% } %>
+    </div>
+</div>
+
+<script>
+// Form validation
+(function() {
+    'use strict';
+    window.addEventListener('load', function() {
+        var forms = document.getElementsByClassName('needs-validation');
+        var validation = Array.prototype.filter.call(forms, function(form) {
+            form.addEventListener('submit', function(event) {
+                if (form.checkValidity() === false) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                }
+                form.classList.add('was-validated');
+            }, false);
+        });
+    }, false);
+})();
+</script>
+
+<%- include('../partials/footer') %>

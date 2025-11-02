@@ -1,0 +1,105 @@
+<%- include('../partials/header') %>
+
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-body p-5">
+                <h2 class="card-title text-center mb-4">Create Your Account</h2>
+                
+                <!-- Error Messages -->
+                <% if (errors && errors.length > 0) { %>
+                    <div class="alert alert-danger" role="alert">
+                        <% errors.forEach(error => { %>
+                            <div><i class="fas fa-exclamation-circle me-2"></i><%= error %></div>
+                        <% }) %>
+                    </div>
+                <% } %>
+                
+                <form action="/signup" method="POST" id="signupForm">
+                    <div class="mb-3">
+                        <label for="username" class="form-label">Username</label>
+                        <input type="text" class="form-control" id="username" name="username" value="<%= formData && formData.username ? formData.username : '' %>" required>
+                        <div class="form-feedback" id="usernameFeedback"></div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email address</label>
+                        <input type="email" class="form-control" id="email" name="email" value="<%= formData && formData.email ? formData.email : '' %>" required>
+                        <div class="form-feedback" id="emailFeedback"></div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Password</label>
+                        <input type="password" class="form-control" id="password" name="password" required>
+                        <div class="form-feedback" id="passwordFeedback"></div>
+                    </div>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary btn-lg form-submit-btn action-btn-enhanced" id="signupBtn">
+                            <span class="btn-text">Create Account</span>
+                            <div class="btn-spinner"></div>
+                        </button>
+                    </div>
+                </form>
+
+                <script>
+                document.getElementById('signupForm').addEventListener('submit', function(e) {
+                    const submitBtn = document.getElementById('signupBtn');
+                    
+                    // Add loading state
+                    submitBtn.classList.add('loading');
+                    submitBtn.disabled = true;
+                });
+
+                // Real-time validation
+                document.getElementById('username').addEventListener('input', function(e) {
+                    const feedback = document.getElementById('usernameFeedback');
+                    if (this.value.length >= 3) {
+                        feedback.innerHTML = '<span class="form-feedback-icon">✓</span> Username available';
+                        feedback.className = 'form-feedback success';
+                    } else if (this.value.length > 0) {
+                        feedback.innerHTML = '<span class="form-feedback-icon">⚠</span> Username too short (min 3 chars)';
+                        feedback.className = 'form-feedback error';
+                    } else {
+                        feedback.innerHTML = '';
+                        feedback.className = 'form-feedback';
+                    }
+                });
+
+                document.getElementById('email').addEventListener('input', function(e) {
+                    const feedback = document.getElementById('emailFeedback');
+                    if (this.value && this.validity.valid) {
+                        feedback.innerHTML = '<span class="form-feedback-icon">✓</span> Valid email';
+                        feedback.className = 'form-feedback success';
+                    } else if (this.value && !this.validity.valid) {
+                        feedback.innerHTML = '<span class="form-feedback-icon">✗</span> Invalid email format';
+                        feedback.className = 'form-feedback error';
+                    } else {
+                        feedback.innerHTML = '';
+                        feedback.className = 'form-feedback';
+                    }
+                });
+
+                document.getElementById('password').addEventListener('input', function(e) {
+                    const feedback = document.getElementById('passwordFeedback');
+                    const password = this.value;
+                    
+                    if (password.length >= 8 && /[A-Z]/.test(password) && /[0-9]/.test(password)) {
+                        feedback.innerHTML = '<span class="form-feedback-icon">✓</span> Strong password';
+                        feedback.className = 'form-feedback success';
+                    } else if (password.length >= 6) {
+                        feedback.innerHTML = '<span class="form-feedback-icon">⚠</span> Good password (add uppercase & number for stronger)';
+                        feedback.className = 'form-feedback success';
+                    } else if (password.length > 0) {
+                        feedback.innerHTML = '<span class="form-feedback-icon">✗</span> Password too short (min 6 chars)';
+                        feedback.className = 'form-feedback error';
+                    } else {
+                        feedback.innerHTML = '';
+                        feedback.className = 'form-feedback';
+                    }
+                });
+                </script>
+                <p class="text-center mt-3">Already have an account? <a href="/login">Login</a></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<%- include('../partials/footer') %>
