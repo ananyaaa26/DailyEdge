@@ -1,0 +1,315 @@
+<%- include('../partials/header') %>
+
+<div class="modern-dashboard">
+    <!-- Sidebar -->
+    <div class="dashboard-sidebar">
+        <!-- User Profile -->
+        <div class="user-profile-card card-interactive">
+            <div class="user-avatar">
+                <div class="avatar-circle interactive-icon">
+                    <span class="avatar-text"><%= currentUser.username.charAt(0).toUpperCase() %></span>
+                </div>
+                <div class="online-indicator"></div>
+            </div>
+            <div class="user-info">
+                <h6 class="user-name"><%= currentUser.username %></h6>
+                <p class="user-xp">
+                    <%= userStats.xp %> XP
+                    <span class="xp-badge">Level <%= Math.floor((userStats.xp || 0) / 100) + 1 %></span>
+                </p>
+            </div>
+        </div>
+
+        <!-- Navigation -->
+        <nav class="sidebar-navigation">
+            <a href="/dashboard" class="nav-link">
+                <span class="nav-icon interactive-icon"></span>
+                <span class="nav-label">Dashboard</span>
+            </a>
+            <a href="/challenges" class="nav-link active">
+                <span class="nav-icon interactive-icon"></span>
+                <span class="nav-label">Challenges</span>
+                <div class="nav-indicator"></div>
+            </a>
+            <a href="/analytics" class="nav-link">
+                <span class="nav-icon interactive-icon"></span>
+                <span class="nav-label">Analytics</span>
+            </a>
+            <a href="/habits/add" class="nav-link">
+                <span class="nav-icon interactive-icon">+</span>
+                <span class="nav-label">Add Habit</span>
+            </a>
+        </nav>
+
+        <!-- Quick Stats -->
+        <div class="sidebar-stats">
+            <h6 class="stats-title">Challenge Progress</h6>
+            <div class="quick-stat">
+                <span class="stat-value"><%= userStats.badge_count || 0 %></span>
+                <span class="stat-label">Badges</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="dashboard-main">
+        <div class="dashboard-content">
+            <div class="page-header">
+                <div class="header-content">
+                    <h1 class="page-title">🏆 Challenges</h1>
+                    <p class="page-subtitle">Push your limits and earn rewards by completing exciting challenges!</p>
+                </div>
+            </div>
+
+        <!-- Active Challenges -->
+        <% if (activeChallenges && activeChallenges.length > 0) { %>
+        <section class="challenges-section">
+            <h2>Active Challenges</h2>
+            <div class="challenges-grid">
+                <% activeChallenges.forEach(challenge => { %>
+                    <div class="challenge-card active">
+                        <div class="challenge-header">
+                            <h3><%= challenge.title %></h3>
+                            <span class="challenge-reward">+<%= challenge.xp_reward %> XP</span>
+                        </div>
+                        <p class="challenge-description"><%= challenge.description %></p>
+                        <div class="challenge-progress">
+                            <div class="progress-bar">
+                                <div class="progress-fill" data-width="<%= challenge.progress_percentage || 0 %>"></div>
+                            </div>
+                            <span class="progress-text"><%= challenge.progress || 0 %>/<%= challenge.duration_days %> days</span>
+                        </div>
+                        <div class="challenge-actions">
+                            <% if (challenge.progress >= challenge.duration_days) { %>
+                                <button class="btn btn-success complete-challenge form-submit-btn action-btn-enhanced" data-challenge-id="<%= challenge.id %>">
+                                    <span class="btn-text">Complete Challenge</span>
+                                    <div class="btn-spinner"></div>
+                                </button>
+                            <% } else { %>
+                                <span class="text-muted"><%= challenge.days_remaining %> days remaining</span>
+                            <% } %>
+                        </div>
+                    </div>
+                <% }) %>
+            </div>
+        </section>
+        <% } %>
+
+        <!-- Available Challenges -->
+        <% if (availableChallenges && availableChallenges.length > 0) { %>
+        <section class="challenges-section">
+            <h2>Available Challenges</h2>
+            <div class="challenges-grid">
+                <% availableChallenges.forEach(challenge => { %>
+                    <div class="challenge-card available">
+                        <div class="challenge-header">
+                            <h3><%= challenge.title %></h3>
+                            <span class="challenge-reward">+<%= challenge.xp_reward %> XP</span>
+                        </div>
+                        <p class="challenge-description"><%= challenge.description %></p>
+                        <div class="challenge-meta">
+                            <span class="challenge-duration"><%= challenge.duration_days %> days</span>
+                            <span class="challenge-difficulty">
+                                <% if (challenge.duration_days <= 7) { %>
+                                    Easy
+                                <% } else if (challenge.duration_days <= 21) { %>
+                                    Medium
+                                <% } else { %>
+                                    Hard
+                                <% } %>
+                            </span>
+                        </div>
+                        <div class="challenge-actions">
+                            <button class="btn btn-primary join-challenge form-submit-btn action-btn-enhanced" data-challenge-id="<%= challenge.id %>">
+                                <span class="btn-text">Start Challenge</span>
+                                <div class="btn-spinner"></div>
+                            </button>
+                        </div>
+                    </div>
+                <% }) %>
+            </div>
+        </section>
+        <% } %>
+
+        <!-- Completed Challenges -->
+        <% if (completedChallenges && completedChallenges.length > 0) { %>
+        <section class="challenges-section">
+            <h2>Completed Challenges</h2>
+            <div class="challenges-grid">
+                <% completedChallenges.forEach(challenge => { %>
+                    <div class="challenge-card completed">
+                        <div class="challenge-header">
+                            <h3><%= challenge.title %></h3>
+                            <span class="challenge-reward completed">+<%= challenge.xp_reward %> XP</span>
+                        </div>
+                        <p class="challenge-description"><%= challenge.description %></p>
+                        <div class="challenge-completion">
+                            <span class="completion-badge">Completed!</span>
+                        </div>
+                    </div>
+                <% }) %>
+            </div>
+        </section>
+        <% } %>
+
+        <% if ((!activeChallenges || activeChallenges.length === 0) && 
+               (!availableChallenges || availableChallenges.length === 0) && 
+               (!completedChallenges || completedChallenges.length === 0)) { %>
+        <div class="empty-state">
+            <div class="empty-state-content">
+                <div class="empty-state-icon"></div>
+                <h3>No Challenges Available</h3>
+                <p>Check back later for new challenges to test your habits!</p>
+            </div>
+        </div>
+        <% } %>
+
+        </div>
+    </div>
+</div>
+
+<script>
+// Set progress bar widths from data attributes
+document.querySelectorAll('.progress-fill[data-width]').forEach(element => {
+    const width = element.getAttribute('data-width');
+    element.style.width = width + '%';
+});
+
+// Enhanced notification system
+function showNotificationToast(message, type = 'info') {
+    // Remove any existing notifications
+    const existingNotification = document.querySelector('.notification-toast');
+    if (existingNotification) {
+        existingNotification.remove();
+    }
+    
+    const notification = document.createElement('div');
+    notification.className = `notification-toast notification-${type}`;
+    notification.innerHTML = `
+        <div class="notification-content">
+            <span class="notification-icon">
+                ${type === 'success' ? '✅' : type === 'error' ? '❌' : type === 'info' ? 'ℹ️' : '⚠️'}
+            </span>
+            <span class="notification-message">${message}</span>
+        </div>
+        <button class="notification-close" onclick="this.parentElement.remove()">×</button>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Animate in
+    setTimeout(() => notification.classList.add('show'), 10);
+    
+    // Auto remove
+    setTimeout(() => {
+        notification.classList.remove('show');
+        setTimeout(() => notification.remove(), 300);
+    }, 4000);
+}
+
+// Handle joining challenges
+document.querySelectorAll('.join-challenge').forEach(button => {
+    button.addEventListener('click', async (e) => {
+        const challengeId = e.target.dataset.challengeId;
+        const originalText = e.target.innerHTML;
+        
+        // Add loading state
+        e.target.innerHTML = `
+            <div class="btn-spinner"></div>
+            <span class="btn-text">Joining...</span>
+        `;
+        e.target.classList.add('loading');
+        e.target.disabled = true;
+        
+        try {
+            const response = await fetch(`/challenges/join/${challengeId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                // Success feedback
+                e.target.innerHTML = `
+                    <span class="btn-text">✅ Joined!</span>
+                `;
+                e.target.classList.remove('loading');
+                e.target.classList.add('btn-success');
+                
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            } else {
+                e.target.innerHTML = originalText;
+                e.target.classList.remove('loading');
+                e.target.disabled = false;
+                showNotificationToast(data.error || 'Failed to join challenge', 'error');
+            }
+        } catch (error) {
+            console.error('Error joining challenge:', error);
+            e.target.innerHTML = originalText;
+            e.target.classList.remove('loading');
+            e.target.disabled = false;
+            showNotificationToast('An error occurred while joining the challenge', 'error');
+        }
+    });
+});
+
+// Handle completing challenges
+document.querySelectorAll('.complete-challenge').forEach(button => {
+    button.addEventListener('click', async (e) => {
+        const challengeId = e.target.dataset.challengeId;
+        const originalText = e.target.innerHTML;
+        
+        // Add loading state
+        e.target.innerHTML = `
+            <div class="btn-spinner"></div>
+            <span class="btn-text">Completing...</span>
+        `;
+        e.target.classList.add('loading');
+        e.target.disabled = true;
+        
+        try {
+            const response = await fetch(`/challenges/complete/${challengeId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                // Success feedback with celebration
+                e.target.innerHTML = `
+                    <span class="btn-text">🎉 Completed!</span>
+                `;
+                e.target.classList.remove('loading');
+                e.target.classList.add('btn-success');
+                
+                showNotificationToast('🎉 Challenge completed! +' + (data.xp_reward || '50') + ' XP earned!', 'success');
+                
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
+            } else {
+                e.target.innerHTML = originalText;
+                e.target.classList.remove('loading');
+                e.target.disabled = false;
+                showNotificationToast(data.error || 'Failed to complete challenge', 'error');
+            }
+        } catch (error) {
+            console.error('Error completing challenge:', error);
+            e.target.innerHTML = originalText;
+            e.target.classList.remove('loading');
+            e.target.disabled = false;
+            showNotificationToast('An error occurred while completing the challenge', 'error');
+        }
+    });
+});
+</script>
+
+<%- include('../partials/footer') %>

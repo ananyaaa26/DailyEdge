@@ -1,0 +1,771 @@
+<%- include('../partials/header') %>
+
+<div class="modern-dashboard">
+    <!-- Sidebar -->
+    <div class="dashboard-sidebar">
+        <!-- User Profile -->
+        <div class="user-profile-card card-interactive">
+            <div class="user-avatar">
+                <div class="avatar-circle interactive-icon">
+                    <span class="avatar-text"><%= currentUser.username.charAt(0).toUpperCase() %></span>
+                </div>
+                <div class="online-indicator"></div>
+            </div>
+            <div class="user-info">
+                <h6 class="user-name"><%= currentUser.username %></h6>
+                <p class="user-xp">
+                    <%= user.xp || 0 %> XP
+                    <span class="xp-badge">Level <%= Math.floor((user.xp || 0) / 100) + 1 %></span>
+                </p>
+            </div>
+        </div>
+
+        <!-- Navigation -->
+        <nav class="sidebar-navigation">
+            <a href="/dashboard" class="nav-link active">
+                <span class="nav-icon interactive-icon"></span>
+                <span class="nav-label">Dashboard</span>
+                <div class="nav-indicator"></div>
+            </a>
+            <a href="/challenges" class="nav-link">
+                <span class="nav-icon interactive-icon"></span>
+                <span class="nav-label">Challenges</span>
+                <span class="nav-badge">New</span>
+            </a>
+            <a href="/analytics" class="nav-link">
+                <span class="nav-icon interactive-icon"></span>
+                <span class="nav-label">Analytics</span>
+            </a>
+            <a href="/habits/add" class="nav-link">
+                <span class="nav-icon interactive-icon">+</span>
+                <span class="nav-label">Add Habit</span>
+            </a>
+        </nav>
+
+        <!-- Quick Stats -->
+        <div class="sidebar-stats">
+            <h6 class="stats-title">Today's Progress</h6>
+            
+            <!-- Mini Progress Bar -->
+            <div class="mini-progress-container">
+                <div class="mini-progress-bar">
+                    <div class="mini-progress-fill" data-width="<%= completionPercentage %>"></div>
+                </div>
+                <span class="mini-progress-text"><%= completionPercentage %>% Complete</span>
+            </div>
+            
+            <div class="quick-stat">
+                <span class="stat-icon">✅</span>
+                <div class="stat-info">
+                    <span class="stat-value"><%= completedCount %>/<%= totalCount %></span>
+                    <span class="stat-label">Completed</span>
+                </div>
+            </div>
+            <div class="quick-stat">
+                <span class="stat-icon">🔥</span>
+                <div class="stat-info">
+                    <span class="stat-value"><%= weeklyStats.active_days || 0 %></span>
+                    <span class="stat-label">Active Days</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="dashboard-main">
+        <!-- Header Section -->
+        <div class="dashboard-header">
+            <div class="header-content">
+                <h1 class="dashboard-title">Good <%= new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 18 ? 'afternoon' : 'evening' %>, <%= currentUser.username %>! 👋</h1>
+                <p class="dashboard-subtitle">Let's continue building great habits today</p>
+            </div>
+            <div class="header-actions">
+                <button class="icon-btn" onclick="refreshDashboard()" title="Refresh dashboard">
+                </button>
+                <button class="icon-btn" onclick="toggleNotifications()" title="Toggle notifications">
+                </button>
+                <button class="icon-btn" onclick="showQuickAdd()" title="Quick add habit">
+                </button>
+            </div>
+        </div>
+
+        <!-- Progress Overview -->
+        <div class="progress-overview">
+            <div class="progress-card main-progress">
+                <div class="progress-header">
+                    <h3 class="progress-title">Today's Progress</h3>
+                    <span class="progress-date"><%= new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }) %></span>
+                </div>
+                <div class="progress-visual">
+                    <div class="circular-progress" data-percent="<%= completionPercentage %>">
+                        <svg class="progress-ring" width="120" height="120">
+                            <defs>
+                                <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                                    <stop offset="0%" style="stop-color:#10b981;stop-opacity:1" />
+                                    <stop offset="100%" style="stop-color:#059669;stop-opacity:1" />
+                                </linearGradient>
+                            </defs>
+                            <circle class="progress-ring-background" cx="60" cy="60" r="54" />
+                            <circle class="progress-ring-fill" cx="60" cy="60" r="54" 
+                                stroke-dasharray="339.292" 
+                                stroke-dashoffset="<%= 339.292 - (339.292 * completionPercentage) / 100 %>" />
+                        </svg>
+                        <div class="progress-content">
+                            <span class="progress-percentage"><%= completionPercentage %>%</span>
+                            <span class="progress-label">Complete</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="progress-stats">
+                    <div class="stat-item">
+                        <span class="stat-number"><%= completedCount %></span>
+                        <span class="stat-text">Completed</span>
+                    </div>
+                    <div class="stat-divider">•</div>
+                    <div class="stat-item">
+                        <span class="stat-number"><%= totalCount %></span>
+                        <span class="stat-text">Total</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">🔥</div>
+                    <div class="stat-content">
+                        <span class="stat-value"><%= weeklyStats.active_days || 0 %></span>
+                        <span class="stat-label">Active Days</span>
+                        <span class="stat-sublabel">This Week</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">⚡</div>
+                    <div class="stat-content">
+                        <span class="stat-value"><%= weeklyStats.total_completions || 0 %></span>
+                        <span class="stat-label">Completions</span>
+                        <span class="stat-sublabel">This Week</span>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">🌟</div>
+                    <div class="stat-content">
+                        <span class="stat-value"><%= user.xp || 0 %></span>
+                        <span class="stat-label">XP Points</span>
+                        <span class="stat-sublabel">Total Earned</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Habits Section Header -->
+        <div class="section-header">
+            <h2 class="section-title">Your Habits</h2>
+            <a href="/habits/add" class="add-habit-btn">
+                Add New Habit
+            </a>
+        </div>
+
+        <!-- Modern Habits Grid -->
+        <div class="habits-container">
+            <% if (habits && habits.length > 0) { %>
+                <div class="habits-grid">
+                    <% habits.forEach((habit, index) => { %>
+                        <div class="habit-card <%= habit.is_completed ? 'completed' : '' %>" 
+                             data-habit-id="<%= habit.id %>">
+                            <div class="habit-header">
+                                <button class="habit-toggle-btn" onclick="toggleHabit('<%= habit.id %>', this)">
+                                    <span class="toggle-icon">
+                                        <% if (habit.is_completed) { %>
+                                            ✓
+                                        <% } else { %>
+                                            <span class="empty-circle"></span>
+                                        <% } %>
+                                    </span>
+                                </button>
+                            </div>
+                            <div class="habit-content">
+                                <h3 class="habit-title"><%= habit.name %></h3>
+                                <p class="habit-category">
+                                    <% 
+                                    const categoryIcons = {
+                                        'Health': '🏥',
+                                        'Fitness': '💪',
+                                        'Study': '📚',
+                                        'Productivity': '⚡',
+                                        'Mindfulness': '🧘'
+                                    };
+                                    const icon = categoryIcons[habit.category] || '📌';
+                                    %>
+                                    <%= icon %> <%= habit.category || 'General' %>
+                                </p>
+                                <div class="habit-streak">
+                                    <% if (habit.streak > 0) { %>
+                                        <span class="streak-badge">🔥 <%= habit.streak %> day streak</span>
+                                    <% } else { %>
+                                        <span class="streak-text">Start your streak today!</span>
+                                    <% } %>
+                                </div>
+                            </div>
+                            <div class="habit-actions">
+                                <button class="action-btn-small" onclick="editHabit('<%= habit.id %>')" title="Edit Habit">
+                                    ✎
+                                </button>
+                                <button class="action-btn-small delete-btn" onclick="deleteHabit('<%= habit.id %>')" title="Delete Habit">
+                                    🗑
+                                </button>
+                            </div>
+                        </div>
+                    <% }) %>
+                    
+                    <!-- Add New Habit Card -->
+                    <div class="habit-card add-new-card">
+                        <a href="/habits/add" class="add-new-link">
+                            <div class="add-new-content">
+                                <div class="add-icon">➕</div>
+                                <h3 class="add-title">Add New Habit</h3>
+                                <p class="add-subtitle">Start building a new routine</p>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+            <% } else { %>
+                <div class="empty-state">
+                    <div class="empty-icon">🌱</div>
+                    <h3 class="empty-title">No Habits Yet</h3>
+                    <p class="empty-description">Start your journey by creating your first habit. Small steps lead to big changes!</p>
+                    <a href="/habits/add" class="create-first-habit-btn">
+                        <span class="btn-icon">🚀</span>
+                        Create Your First Habit
+                    </a>
+                </div>
+            <% } %>
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript for Interactive Features -->
+<script>
+async function toggleHabit(habitId, button) {
+    try {
+        // Show celebration loader for completion
+        showCelebrationLoader();
+        
+        // Add loading state
+        const toggleIcon = button.querySelector('.toggle-icon');
+        const originalContent = toggleIcon.innerHTML;
+        toggleIcon.innerHTML = '<span class="loading-spinner">⏳</span>';
+        button.disabled = true;
+
+        const response = await fetch(`/habits/toggle/${habitId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            const habitCard = button.closest('.habit-card');
+            const isCompleted = data.completed;
+            
+            // Update the card visual state
+            if (isCompleted) {
+                habitCard.classList.add('completed');
+                toggleIcon.innerHTML = '✓';
+                
+                // Show completion celebration
+                setTimeout(() => {
+                    hideCelebrationLoader();
+                    showCompletionCelebration();
+                }, 800);
+            } else {
+                habitCard.classList.remove('completed');
+                toggleIcon.innerHTML = '<span class="empty-circle"></span>';
+                hideCelebrationLoader();
+            }
+            
+            // Update progress display
+            updateProgressDisplay();
+            
+            // Show success feedback with encouraging message
+            if (isCompleted) {
+                const encouragingMessages = [
+                    "Yippee! Done for today! 🎉 Great work, champ!",
+                    "Amazing! You're on fire! 🔥 Keep it up!",
+                    "Fantastic! Another goal crushed! 💪",
+                    "Wonderful! You're building amazing habits! ⭐",
+                    "Excellent! Progress feels great, doesn't it? 🌟"
+                ];
+                const randomMessage = encouragingMessages[Math.floor(Math.random() * encouragingMessages.length)];
+                showNotification(randomMessage, 'success');
+            } else {
+                showNotification('Habit unmarked', 'info');
+            }
+        } else {
+            hideCelebrationLoader();
+            throw new Error(data.error || 'Failed to update habit');
+        }
+    } catch (error) {
+        console.error('Error toggling habit:', error);
+        showNotification('Failed to update habit. Please try again.', 'error');
+        // Reset button state
+        toggleIcon.innerHTML = originalContent;
+    } finally {
+        button.disabled = false;
+    }
+}
+
+async function updateProgressDisplay() {
+    try {
+        const completedCards = document.querySelectorAll('.habit-card.completed').length;
+        const totalCards = document.querySelectorAll('.habit-card[data-habit-id]').length;
+        const percentage = totalCards > 0 ? Math.round((completedCards / totalCards) * 100) : 0;
+        
+        // Update circular progress
+        const progressRing = document.querySelector('.progress-ring-fill');
+        const progressPercentage = document.querySelector('.progress-percentage');
+        const progressStats = document.querySelectorAll('.stat-number');
+        
+        if (progressRing) {
+            const circumference = 339.292;
+            const offset = circumference - (circumference * percentage) / 100;
+            progressRing.style.strokeDashoffset = offset;
+        }
+        
+        if (progressPercentage) {
+            progressPercentage.textContent = percentage + '%';
+        }
+        
+        // Update stats
+        if (progressStats.length >= 2) {
+            progressStats[0].textContent = completedCards;
+            progressStats[1].textContent = totalCards;
+        }
+    } catch (error) {
+        console.error('Error updating progress display:', error);
+    }
+}
+
+function editHabit(habitId) {
+    window.location.href = `/habits/edit/${habitId}`;
+}
+
+async function deleteHabit(habitId) {
+    if (!confirm('Are you sure you want to delete this habit? This action cannot be undone.')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/habits/delete/${habitId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+        
+        if (response.ok) {
+            // Remove the card from the DOM
+            const habitCard = document.querySelector(`[data-habit-id="${habitId}"]`);
+            if (habitCard) {
+                habitCard.style.opacity = '0';
+                habitCard.style.transform = 'scale(0.8)';
+                setTimeout(() => {
+                    habitCard.remove();
+                    updateProgressDisplay();
+                }, 300);
+            }
+            showNotification('Habit deleted successfully', 'success');
+        } else {
+            throw new Error('Failed to delete habit');
+        }
+    } catch (error) {
+        console.error('Error deleting habit:', error);
+        showNotification('Failed to delete habit. Please try again.', 'error');
+    }
+}
+
+function refreshDashboard() {
+    window.location.reload();
+}
+
+function showNotification(message, type = 'info') {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `notification notification-${type}`;
+    notification.textContent = message;
+    
+    // Add to page
+    document.body.appendChild(notification);
+    
+    // Animate in
+    setTimeout(() => notification.classList.add('show'), 100);
+    
+    // Remove after delay
+    setTimeout(() => {
+        notification.classList.remove('show');
+        setTimeout(() => notification.remove(), 300);
+    }, 3000);
+}
+
+// Enhanced Interactive Functions
+function refreshDashboard() {
+    const refreshBtn = event.target.closest('.icon-btn');
+    
+    // Simple scale feedback
+    refreshBtn.style.transform = 'scale(0.9)';
+    setTimeout(() => {
+        refreshBtn.style.transform = 'scale(1)';
+    }, 150);
+    
+    // Show feedback and refresh
+    showNotification('Dashboard refreshed!', 'success');
+    
+    // Simulate refresh (in real app, this would reload data)
+    setTimeout(() => {
+        location.reload();
+    }, 800);
+}
+
+function toggleNotifications() {
+    const btn = event.target.closest('.icon-btn');
+    btn.classList.toggle('active');
+    
+    const isActive = btn.classList.contains('active');
+    showNotification(
+        isActive ? 'Notifications enabled' : 'Notifications disabled', 
+        'info'
+    );
+}
+
+function showQuickAdd() {
+    const overlay = document.createElement('div');
+    overlay.className = 'quick-add-overlay';
+    overlay.innerHTML = `
+        <div class="quick-add-modal">
+            <h3>Quick Add Habit</h3>
+            <input type="text" placeholder="Enter habit name..." class="quick-add-input">
+            <div class="quick-add-actions">
+                <button class="btn btn-primary" onclick="addQuickHabit()">Add</button>
+                <button class="btn btn-secondary" onclick="closeQuickAdd()">Cancel</button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(overlay);
+    setTimeout(() => overlay.classList.add('show'), 10);
+}
+
+function addQuickHabit() {
+    const input = document.querySelector('.quick-add-input');
+    if (input.value.trim()) {
+        showNotification('Habit added successfully!', 'success');
+        closeQuickAdd();
+        // Here you would normally send the data to the server
+    }
+}
+
+function closeQuickAdd() {
+    const overlay = document.querySelector('.quick-add-overlay');
+    if (overlay) {
+        overlay.classList.remove('show');
+        setTimeout(() => overlay.remove(), 300);
+    }
+}
+
+// Celebration Loader Functions
+function showCelebrationLoader() {
+    const loader = document.createElement('div');
+    loader.className = 'celebration-loader';
+    loader.id = 'celebration-loader';
+    loader.innerHTML = `
+        <div class="celebration-content">
+            <div class="celebration-spinner">
+                <div class="spinner-ring"></div>
+                <div class="spinner-icon">🎉</div>
+            </div>
+            <div class="celebration-text">Processing your awesome progress...</div>
+        </div>
+    `;
+    
+    document.body.appendChild(loader);
+    setTimeout(() => loader.classList.add('show'), 10);
+}
+
+function hideCelebrationLoader() {
+    const loader = document.getElementById('celebration-loader');
+    if (loader) {
+        loader.classList.remove('show');
+        setTimeout(() => loader.remove(), 300);
+    }
+}
+
+function showCompletionCelebration() {
+    const celebration = document.createElement('div');
+    celebration.className = 'completion-celebration';
+    celebration.innerHTML = `
+        <div class="celebration-burst">
+            <div class="burst-particle">🎉</div>
+            <div class="burst-particle">⭐</div>
+            <div class="burst-particle">🎊</div>
+            <div class="burst-particle">✨</div>
+            <div class="burst-particle">🌟</div>
+            <div class="burst-particle">🎈</div>
+        </div>
+    `;
+    
+    document.body.appendChild(celebration);
+    
+    // Remove after animation
+    setTimeout(() => {
+        celebration.remove();
+    }, 2000);
+}
+
+// Initialize progress animation on page load
+document.addEventListener('DOMContentLoaded', function() {
+    updateProgressDisplay();
+    
+    // Set mini progress bar width from data attribute
+    const miniProgressFill = document.querySelector('.mini-progress-fill');
+    if (miniProgressFill) {
+        const width = miniProgressFill.getAttribute('data-width');
+        miniProgressFill.style.width = width + '%';
+    }
+    
+    // Add interaction effects to habit cards
+    const habitCards = document.querySelectorAll('.habit-item');
+    habitCards.forEach(card => {
+        card.addEventListener('mouseenter', function() {
+            this.style.transform = 'translateY(-2px)';
+        });
+        
+        card.addEventListener('mouseleave', function() {
+            this.style.transform = 'translateY(0)';
+        });
+    });
+});
+</script>
+
+<!-- Floating Action Button -->
+<button class="fab" onclick="showQuickAdd()" title="Quick add habit">
+    <span class="interactive-icon">➕</span>
+</button>
+
+<!-- Quick Add Modal Styles -->
+<style>
+.quick-add-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.quick-add-overlay.show {
+    opacity: 1;
+}
+
+.quick-add-modal {
+    background: var(--card-bg);
+    padding: 2rem;
+    border-radius: 12px;
+    border: 1px solid var(--card-border);
+    box-shadow: var(--card-shadow);
+    min-width: 300px;
+    transform: scale(0.9);
+    transition: transform 0.3s ease;
+}
+
+.quick-add-overlay.show .quick-add-modal {
+    transform: scale(1);
+}
+
+.quick-add-input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid var(--input-border);
+    border-radius: 8px;
+    background: var(--input-bg);
+    color: var(--text-primary);
+    margin: 1rem 0;
+}
+
+.quick-add-actions {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
+}
+
+.online-indicator {
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+    width: 12px;
+    height: 12px;
+    background: var(--success-color);
+    border-radius: 50%;
+    border: 2px solid var(--card-bg);
+    animation: pulse 2s infinite;
+}
+
+.xp-badge {
+    background: linear-gradient(45deg, var(--primary-color), var(--accent-color));
+    color: white;
+    padding: 0.2rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    margin-left: 0.5rem;
+}
+
+.nav-indicator {
+    position: absolute;
+    right: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 4px;
+    height: 20px;
+    background: var(--primary-color);
+    border-radius: 2px;
+}
+
+.nav-badge {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    background: var(--error-color);
+    color: white;
+    padding: 0.1rem 0.4rem;
+    border-radius: 10px;
+    font-size: 0.6rem;
+    font-weight: 600;
+}
+
+.icon-btn.active {
+    background: var(--primary-color) !important;
+    color: white !important;
+}
+
+/* Celebration Loader Styles */
+.celebration-loader {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 3000;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.celebration-loader.show {
+    opacity: 1;
+}
+
+.celebration-content {
+    text-align: center;
+    color: white;
+}
+
+.celebration-spinner {
+    position: relative;
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 1rem;
+}
+
+.spinner-ring {
+    position: absolute;
+    width: 80px;
+    height: 80px;
+    border: 4px solid rgba(255, 255, 255, 0.2);
+    border-top: 4px solid #6366f1;
+    border-radius: 50%;
+    animation: celebrationSpin 1s linear infinite;
+}
+
+.spinner-icon {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 2rem;
+    animation: bounce 0.6s ease-in-out infinite alternate;
+}
+
+.celebration-text {
+    font-size: 1.1rem;
+    font-weight: 500;
+    color: #cbd5e0;
+}
+
+/* Completion Celebration */
+.completion-celebration {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+    z-index: 2500;
+}
+
+.celebration-burst {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.burst-particle {
+    position: absolute;
+    font-size: 2rem;
+    animation: burstAnimation 2s ease-out forwards;
+}
+
+.burst-particle:nth-child(1) { --delay: 0s; --angle: 0deg; }
+.burst-particle:nth-child(2) { --delay: 0.1s; --angle: 60deg; }
+.burst-particle:nth-child(3) { --delay: 0.2s; --angle: 120deg; }
+.burst-particle:nth-child(4) { --delay: 0.3s; --angle: 180deg; }
+.burst-particle:nth-child(5) { --delay: 0.4s; --angle: 240deg; }
+.burst-particle:nth-child(6) { --delay: 0.5s; --angle: 300deg; }
+
+@keyframes celebrationSpin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+@keyframes bounce {
+    0% { transform: translate(-50%, -50%) scale(1); }
+    100% { transform: translate(-50%, -50%) scale(1.2); }
+}
+
+@keyframes burstAnimation {
+    0% {
+        transform: rotate(var(--angle)) translateX(0) scale(0);
+        opacity: 1;
+    }
+    50% {
+        transform: rotate(var(--angle)) translateX(150px) scale(1);
+        opacity: 1;
+    }
+    100% {
+        transform: rotate(var(--angle)) translateX(200px) scale(0);
+        opacity: 0;
+    }
+}
+</style>
+
+<%- include('../partials/footer') %>
