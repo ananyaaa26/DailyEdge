@@ -5,6 +5,7 @@
         <div class="card glass-effect">
             <div class="card-body p-5">
                 <div class="text-center mb-5">
+                
                     <h1 class="display-6 fw-bold mb-2">
                         <%= habit ? 'Edit Your Habit' : 'Create a New Habit' %>
                     </h1>
@@ -54,7 +55,7 @@
                             <% categories.forEach(cat => { %>
                                 <option value="<%= cat.value %>" 
                                         <%= (habit && habit.category === cat.value) ? 'selected' : '' %>>
-                                    <%= cat.icon %> <%= cat.value %>
+                                    <%= cat.icon %> <%= cat.value %> - <%= cat.description %>
                                 </option>
                             <% }); %>
                         </select>
@@ -86,9 +87,9 @@
                     <div class="d-flex flex-column flex-sm-row gap-3">
                         <button type="submit" class="btn btn-primary btn-lg interactive flex-fill">
                             <% if (habit) { %>
-                                Update Habit
+                                <span class="me-2">💾</span>Update Habit
                             <% } else { %>
-                                Create Habit
+                                <span class="me-2">🚀</span>Create Habit
                             <% } %>
                         </button>
                         <a href="/dashboard" class="btn btn-outline-secondary btn-lg hover-lift flex-fill" role="button">
@@ -102,7 +103,7 @@
         <% if (!habit) { %>
         <div class="card glass-effect mt-4 animation-slideUp">
             <div class="card-body p-4">
-                <h5 class="fw-semibold mb-3">Tips for Success</h5>
+                <h5 class="fw-semibold mb-3">💡 Tips for Success</h5>
                 <ul class="list-unstyled mb-0">
                     <li class="d-flex align-items-start mb-2">
                         <span class="badge bg-primary rounded-pill me-3 mt-1">1</span>
