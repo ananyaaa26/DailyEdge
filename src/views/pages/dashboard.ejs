@@ -14,6 +14,7 @@
             <div class="user-info">
                 <h6 class="user-name"><%= currentUser.username %></h6>
                 <p class="user-xp">
+                    <span class="interactive-icon">🌟</span> 
                     <%= user.xp || 0 %> XP
                     <span class="xp-badge">Level <%= Math.floor((user.xp || 0) / 100) + 1 %></span>
                 </p>
@@ -23,21 +24,21 @@
         <!-- Navigation -->
         <nav class="sidebar-navigation">
             <a href="/dashboard" class="nav-link active">
-                <span class="nav-icon interactive-icon"></span>
+                <span class="nav-icon interactive-icon">🏠</span>
                 <span class="nav-label">Dashboard</span>
                 <div class="nav-indicator"></div>
             </a>
             <a href="/challenges" class="nav-link">
-                <span class="nav-icon interactive-icon"></span>
+                <span class="nav-icon interactive-icon">🏆</span>
                 <span class="nav-label">Challenges</span>
                 <span class="nav-badge">New</span>
             </a>
             <a href="/analytics" class="nav-link">
-                <span class="nav-icon interactive-icon"></span>
+                <span class="nav-icon interactive-icon">📊</span>
                 <span class="nav-label">Analytics</span>
             </a>
             <a href="/habits/add" class="nav-link">
-                <span class="nav-icon interactive-icon">+</span>
+                <span class="nav-icon interactive-icon">➕</span>
                 <span class="nav-label">Add Habit</span>
             </a>
         </nav>
@@ -45,24 +46,15 @@
         <!-- Quick Stats -->
         <div class="sidebar-stats">
             <h6 class="stats-title">Today's Progress</h6>
-            
-            <!-- Mini Progress Bar -->
-            <div class="mini-progress-container">
-                <div class="mini-progress-bar">
-                    <div class="mini-progress-fill" data-width="<%= completionPercentage %>"></div>
-                </div>
-                <span class="mini-progress-text"><%= completionPercentage %>% Complete</span>
-            </div>
-            
             <div class="quick-stat">
-                <span class="stat-icon">✅</span>
+               
                 <div class="stat-info">
                     <span class="stat-value"><%= completedCount %>/<%= totalCount %></span>
                     <span class="stat-label">Completed</span>
                 </div>
             </div>
             <div class="quick-stat">
-                <span class="stat-icon">🔥</span>
+            
                 <div class="stat-info">
                     <span class="stat-value"><%= weeklyStats.active_days || 0 %></span>
                     <span class="stat-label">Active Days</span>
@@ -81,10 +73,13 @@
             </div>
             <div class="header-actions">
                 <button class="icon-btn" onclick="refreshDashboard()" title="Refresh dashboard">
+                    <span class="interactive-icon">🔄</span>
                 </button>
                 <button class="icon-btn" onclick="toggleNotifications()" title="Toggle notifications">
+                    <span class="interactive-icon">🔔</span>
                 </button>
                 <button class="icon-btn" onclick="showQuickAdd()" title="Quick add habit">
+                    <span class="interactive-icon">⚡</span>
                 </button>
             </div>
         </div>
@@ -170,13 +165,36 @@
             <% if (habits && habits.length > 0) { %>
                 <div class="habits-grid">
                     <% habits.forEach((habit, index) => { %>
-                        <div class="habit-card <%= habit.is_completed ? 'completed' : '' %>" 
-                             data-habit-id="<%= habit.id %>">
+                        <div class="habit-card <%= habit.is_completed ? 'completed' : '' %>" data-habit-id="<%= habit.id %>">
                             <div class="habit-header">
+                                <div class="habit-icon">
+                                    <span class="habit-emoji">
+                                        <% if (habit.name.toLowerCase().includes('workout') || habit.name.toLowerCase().includes('exercise') || habit.name.toLowerCase().includes('gym')) { %>
+                                            
+                                                                <% } else if (habit.name.toLowerCase().includes('read')) { %>
+                                            
+                                            
+                                        <% } else if (habit.name.toLowerCase().includes('water') || habit.name.toLowerCase().includes('drink')) { %>
+                                            
+                                        <% } else if (habit.name.toLowerCase().includes('run')) { %>
+                                            
+                                        <% } else if (habit.name.toLowerCase().includes('meditat')) { %>
+                                            
+                                        <% } else if (habit.name.toLowerCase().includes('study') || habit.name.toLowerCase().includes('learn')) { %>
+                                            
+                                        <% } else if (habit.name.toLowerCase().includes('sleep')) { %>
+                                            
+                                        <% } else if (habit.name.toLowerCase().includes('walk')) { %>
+                                            
+                                        <% } else { %>
+                                            
+                                        <% } %>
+                                    </span>
+                                </div>
                                 <button class="habit-toggle-btn" onclick="toggleHabit('<%= habit.id %>', this)">
                                     <span class="toggle-icon">
                                         <% if (habit.is_completed) { %>
-                                            ✓
+                                            
                                         <% } else { %>
                                             <span class="empty-circle"></span>
                                         <% } %>
@@ -185,33 +203,18 @@
                             </div>
                             <div class="habit-content">
                                 <h3 class="habit-title"><%= habit.name %></h3>
-                                <p class="habit-category">
-                                    <% 
-                                    const categoryIcons = {
-                                        'Health': '🏥',
-                                        'Fitness': '💪',
-                                        'Study': '📚',
-                                        'Productivity': '⚡',
-                                        'Mindfulness': '🧘'
-                                    };
-                                    const icon = categoryIcons[habit.category] || '📌';
-                                    %>
-                                    <%= icon %> <%= habit.category || 'General' %>
-                                </p>
+                                <p class="habit-category"><%= habit.category || 'General' %></p>
                                 <div class="habit-streak">
-                                    <% if (habit.streak > 0) { %>
-                                        <span class="streak-badge">🔥 <%= habit.streak %> day streak</span>
-                                    <% } else { %>
-                                        <span class="streak-text">Start your streak today!</span>
-                                    <% } %>
+                                    <span class="streak-icon">🔥</span>
+                                    <span class="streak-text"><%= habit.streak || 0 %> day streak</span>
                                 </div>
                             </div>
                             <div class="habit-actions">
                                 <button class="action-btn-small" onclick="editHabit('<%= habit.id %>')" title="Edit Habit">
-                                    ✎
+                                    ✏️
                                 </button>
                                 <button class="action-btn-small delete-btn" onclick="deleteHabit('<%= habit.id %>')" title="Delete Habit">
-                                    🗑
+                                    🗑️
                                 </button>
                             </div>
                         </div>
@@ -525,13 +528,6 @@ function showCompletionCelebration() {
 // Initialize progress animation on page load
 document.addEventListener('DOMContentLoaded', function() {
     updateProgressDisplay();
-    
-    // Set mini progress bar width from data attribute
-    const miniProgressFill = document.querySelector('.mini-progress-fill');
-    if (miniProgressFill) {
-        const width = miniProgressFill.getAttribute('data-width');
-        miniProgressFill.style.width = width + '%';
-    }
     
     // Add interaction effects to habit cards
     const habitCards = document.querySelectorAll('.habit-item');
