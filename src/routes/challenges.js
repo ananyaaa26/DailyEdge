@@ -13,5 +13,6 @@ const authCheck = (req, res, next) => {
 router.get('/', authCheck, challengesController.getChallengesPage);
 router.post('/join/:id', authCheck, challengesController.joinChallenge);
 router.post('/complete/:id', authCheck, challengesController.completeChallenge);
+router.post('/toggle/:id', authCheck, challengesController.toggleChallengeStatus);
 
 module.exports = router;

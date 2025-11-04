@@ -162,7 +162,7 @@
 
         <!-- Modern Habits Grid -->
         <div class="habits-container">
-            <% if (habits && habits.length > 0) { %>
+            <% if ((habits && habits.length > 0) || (activeChallenges && activeChallenges.length > 0)) { %>
                 <div class="habits-grid">
                     <% habits.forEach((habit, index) => { %>
                         <div class="habit-card <%= habit.is_completed ? 'completed' : '' %>" data-habit-id="<%= habit.id %>">
@@ -170,31 +170,30 @@
                                 <div class="habit-icon">
                                     <span class="habit-emoji">
                                         <% if (habit.name.toLowerCase().includes('workout') || habit.name.toLowerCase().includes('exercise') || habit.name.toLowerCase().includes('gym')) { %>
-                                            
-                                                                <% } else if (habit.name.toLowerCase().includes('read')) { %>
-                                            
-                                            
+                                            💪
+                                        <% } else if (habit.name.toLowerCase().includes('read')) { %>
+                                            📚
                                         <% } else if (habit.name.toLowerCase().includes('water') || habit.name.toLowerCase().includes('drink')) { %>
-                                            
+                                            💧
                                         <% } else if (habit.name.toLowerCase().includes('run')) { %>
-                                            
+                                            🏃
                                         <% } else if (habit.name.toLowerCase().includes('meditat')) { %>
-                                            
+                                            🧘
                                         <% } else if (habit.name.toLowerCase().includes('study') || habit.name.toLowerCase().includes('learn')) { %>
-                                            
+                                            📖
                                         <% } else if (habit.name.toLowerCase().includes('sleep')) { %>
-                                            
+                                            😴
                                         <% } else if (habit.name.toLowerCase().includes('walk')) { %>
-                                            
+                                            🚶
                                         <% } else { %>
-                                            
+                                            ✨
                                         <% } %>
                                     </span>
                                 </div>
                                 <button class="habit-toggle-btn" onclick="toggleHabit('<%= habit.id %>', this)">
                                     <span class="toggle-icon">
                                         <% if (habit.is_completed) { %>
-                                            
+                                            ✓
                                         <% } else { %>
                                             <span class="empty-circle"></span>
                                         <% } %>
@@ -215,6 +214,39 @@
                                 </button>
                                 <button class="action-btn-small delete-btn" onclick="deleteHabit('<%= habit.id %>')" title="Delete Habit">
                                     🗑️
+                                </button>
+                            </div>
+                        </div>
+                    <% }) %>
+                    
+                    <% activeChallenges.forEach((challenge, index) => { %>
+                        <div class="habit-card challenge-card <%= challenge.is_completed ? 'completed' : '' %>" data-challenge-id="<%= challenge.id %>">
+                            <div class="habit-header">
+                                <div class="habit-icon challenge-icon">
+                                    <span class="habit-emoji">🏆</span>
+                                    <span class="challenge-badge">Challenge</span>
+                                </div>
+                                <button class="habit-toggle-btn" onclick="toggleChallenge('<%= challenge.id %>', this)">
+                                    <span class="toggle-icon">
+                                        <% if (challenge.is_completed) { %>
+                                            ✓
+                                        <% } else { %>
+                                            <span class="empty-circle"></span>
+                                        <% } %>
+                                    </span>
+                                </button>
+                            </div>
+                            <div class="habit-content">
+                                <h3 class="habit-title"><%= challenge.name %></h3>
+                                <p class="habit-category"><%= challenge.category || 'Challenge' %></p>
+                                <div class="habit-streak">
+                                    <span class="streak-icon">🔥</span>
+                                    <span class="streak-text"><%= challenge.streak || 0 %> day streak</span>
+                                </div>
+                            </div>
+                            <div class="habit-actions">
+                                <button class="action-btn-small" onclick="viewChallenge()" title="View Challenge">
+                                    👁️
                                 </button>
                             </div>
                         </div>
@@ -319,10 +351,81 @@ async function toggleHabit(habitId, button) {
     }
 }
 
+async function toggleChallenge(challengeId, button) {
+    try {
+        // Show celebration loader for completion
+        showCelebrationLoader();
+        
+        // Add loading state
+        const toggleIcon = button.querySelector('.toggle-icon');
+        const originalContent = toggleIcon.innerHTML;
+        toggleIcon.innerHTML = '<span class="loading-spinner">⏳</span>';
+        button.disabled = true;
+
+        const response = await fetch(`/challenges/toggle/${challengeId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            const challengeCard = button.closest('.habit-card');
+            const isCompleted = data.completed;
+            
+            // Update the card visual state
+            if (isCompleted) {
+                challengeCard.classList.add('completed');
+                toggleIcon.innerHTML = '✓';
+                
+                // Show completion celebration
+                setTimeout(() => {
+                    hideCelebrationLoader();
+                    showCompletionCelebration();
+                }, 800);
+            } else {
+                challengeCard.classList.remove('completed');
+                toggleIcon.innerHTML = '<span class="empty-circle"></span>';
+                hideCelebrationLoader();
+            }
+            
+            // Update progress display
+            updateProgressDisplay();
+            
+            // Show success feedback with encouraging message
+            if (isCompleted) {
+                const encouragingMessages = [
+                    "Challenge progress! Keep pushing! 🏆",
+                    "You're crushing this challenge! 💪",
+                    "Amazing dedication! Keep going! 🌟",
+                    "Challenge beast mode! 🔥",
+                    "One day closer to victory! ⭐"
+                ];
+                const randomMessage = encouragingMessages[Math.floor(Math.random() * encouragingMessages.length)];
+                showNotification(randomMessage, 'success');
+            } else {
+                showNotification('Challenge unmarked', 'info');
+            }
+        } else {
+            hideCelebrationLoader();
+            throw new Error(data.error || 'Failed to update challenge');
+        }
+    } catch (error) {
+        console.error('Error toggling challenge:', error);
+        showNotification('Failed to update challenge. Please try again.', 'error');
+        // Reset button state
+        toggleIcon.innerHTML = originalContent;
+    } finally {
+        button.disabled = false;
+    }
+}
+
 async function updateProgressDisplay() {
     try {
         const completedCards = document.querySelectorAll('.habit-card.completed').length;
-        const totalCards = document.querySelectorAll('.habit-card[data-habit-id]').length;
+        const totalCards = document.querySelectorAll('.habit-card[data-habit-id], .habit-card[data-challenge-id]').length;
         const percentage = totalCards > 0 ? Math.round((completedCards / totalCards) * 100) : 0;
         
         // Update circular progress
@@ -386,6 +489,10 @@ async function deleteHabit(habitId) {
         console.error('Error deleting habit:', error);
         showNotification('Failed to delete habit. Please try again.', 'error');
     }
+}
+
+function viewChallenge() {
+    window.location.href = '/challenges';
 }
 
 function refreshDashboard() {
