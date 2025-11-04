@@ -1,7 +1,7 @@
 const db = require('./src/models/db');
 
 async function checkTables() {
-    const tables = ['users', 'habits', 'habit_logs', 'challenges', 'user_challenges', 'badges'];
+    const tables = ['users', 'habits', 'habit_logs', 'challenges', 'user_challenges', 'challenge_logs', 'badges'];
     
     for (const table of tables) {
         try {

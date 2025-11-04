@@ -134,3 +134,70 @@ exports.completeChallenge = async (req, res, next) => {
         res.status(500).json({ error: 'An error occurred while completing the challenge' });
     }
 };
+
+exports.toggleChallengeStatus = async (req, res, next) => {
+    if (!req.session.user) {
+        return res.status(401).json({ error: 'Unauthorized' });
+    }
+    
+    const challengeId = req.params.id;
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+    const userId = req.session.user.id;
+
+    try {
+        // Get the user_challenge record
+        const userChallengeResult = await db.query(
+            'SELECT id, status FROM user_challenges WHERE user_id = $1 AND challenge_id = $2',
+            [userId, challengeId]
+        );
+
+        if (userChallengeResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Challenge not found or not joined' });
+        }
+
+        const userChallenge = userChallengeResult.rows[0];
+        const userChallengeId = userChallenge.id;
+
+        // Check if log for today exists
+        const existingLog = await db.query(
+            'SELECT id, status FROM challenge_logs WHERE user_challenge_id = $1 AND date = $2',
+            [userChallengeId, today]
+        );
+
+        let newStatus = 'done';
+        let wasCompleted = false;
+
+        if (existingLog.rows.length > 0) {
+            // Toggle existing log
+            const currentStatus = existingLog.rows[0].status;
+            newStatus = currentStatus === 'done' ? 'not done' : 'done';
+            wasCompleted = currentStatus === 'done';
+            
+            await db.query('UPDATE challenge_logs SET status = $1 WHERE id = $2', [newStatus, existingLog.rows[0].id]);
+        } else {
+            // Insert new log as completed
+            await db.query(
+                'INSERT INTO challenge_logs (user_challenge_id, date, status) VALUES ($1, $2, $3)',
+                [userChallengeId, today, newStatus]
+            );
+        }
+
+        // Award or remove XP based on completion status
+        if (newStatus === 'done' && !wasCompleted) {
+            // Completed - award XP (daily XP, not the full challenge reward)
+            await db.query('UPDATE users SET xp = xp + 15 WHERE id = $1', [userId]);
+        } else if (newStatus === 'not done' && wasCompleted) {
+            // Uncompleted - remove XP (but don't go below 0)
+            await db.query('UPDATE users SET xp = GREATEST(xp - 15, 0) WHERE id = $1', [userId]);
+        }
+
+        res.json({ 
+            success: true, 
+            status: newStatus,
+            completed: newStatus === 'done'
+        });
+    } catch (err) {
+        console.error('Toggle challenge error:', err);
+        res.status(500).json({ error: 'An error occurred while updating the challenge' });
+    }
+};
