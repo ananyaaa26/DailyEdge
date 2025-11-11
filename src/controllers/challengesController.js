@@ -1,4 +1,5 @@
 const db = require('../models/db');
+const { calculateChallengeStreak, awardBadges, getStreakMultiplier } = require('../utils/gamification');
 
 exports.getChallengesPage = async (req, res, next) => {
     try {
@@ -184,8 +185,36 @@ exports.toggleChallengeStatus = async (req, res, next) => {
 
         // Award or remove XP based on completion status
         if (newStatus === 'done' && !wasCompleted) {
-            // Completed - award XP (daily XP, not the full challenge reward)
-            await db.query('UPDATE users SET xp = xp + 15 WHERE id = $1', [userId]);
+            // Calculate current streak for this challenge
+            const streak = await calculateChallengeStreak(userChallengeId);
+            
+            // Get streak multiplier
+            const multiplier = getStreakMultiplier(streak);
+            
+            // Base XP for completing a challenge daily task (higher than habits)
+            const baseXP = 15;
+            const earnedXP = Math.round(baseXP * multiplier);
+            
+            // Award XP with streak bonus
+            await db.query('UPDATE users SET xp = xp + $1 WHERE id = $2', [earnedXP, userId]);
+            
+            // Check for streak milestones and award badges + bonus XP
+            try {
+                const badgeReward = await awardBadges(userId, streak);
+                
+                res.json({ 
+                    success: true, 
+                    status: newStatus,
+                    completed: newStatus === 'done',
+                    xpEarned: earnedXP,
+                    streak: streak,
+                    multiplier: multiplier,
+                    badgeReward: badgeReward
+                });
+                return;
+            } catch (streakErr) {
+                console.error('Error calculating challenge streak:', streakErr);
+            }
         } else if (newStatus === 'not done' && wasCompleted) {
             // Uncompleted - remove XP (but don't go below 0)
             await db.query('UPDATE users SET xp = GREATEST(xp - 15, 0) WHERE id = $1', [userId]);
