@@ -1,5 +1,5 @@
 const db = require('../models/db');
-const { calculateStreak } = require('../utils/gamification');
+const { calculateStreak, calculateChallengeStreak } = require('../utils/gamification');
 
 exports.getAnalytics = async (req, res, next) => {
     if (!req.session.user) return res.redirect('/login');
@@ -32,39 +32,99 @@ exports.getAnalytics = async (req, res, next) => {
         for (const habit of habits) {
             const streak = await calculateStreak(habit.id);
             habit.streak = streak;
+            habit.type = 'habit';
             if (streak > longestStreak) {
                 longestStreak = streak;
                 longestStreakHabit = habit.name;
             }
         }
 
+        // Get all active challenges with their completion stats
+        const challengesResult = await db.query(`
+            SELECT c.id, c.title as name, c.duration_days, uc.start_date, uc.id as user_challenge_id,
+                   COUNT(cl.id) FILTER (WHERE cl.status = 'done') as total_completions,
+                   COUNT(DISTINCT cl.date) FILTER (WHERE cl.status = 'done') as active_days
+            FROM challenges c
+            JOIN user_challenges uc ON c.id = uc.challenge_id
+            LEFT JOIN challenge_logs cl ON cl.user_challenge_id = uc.id
+            WHERE uc.user_id = $1 AND uc.status = 'in_progress'
+            GROUP BY c.id, c.title, c.duration_days, uc.start_date, uc.id
+            ORDER BY total_completions DESC
+        `, [userId]);
+
+        const challenges = challengesResult.rows;
+        
+        // Calculate streaks for each challenge and set category
+        for (const challenge of challenges) {
+            const streak = await calculateChallengeStreak(challenge.user_challenge_id);
+            challenge.streak = streak;
+            challenge.type = 'challenge';
+            
+            // Set category based on challenge name
+            if (challenge.name.toLowerCase().includes('fitness') || challenge.name.toLowerCase().includes('workout')) {
+                challenge.category = 'Health';
+            } else if (challenge.name.toLowerCase().includes('study') || challenge.name.toLowerCase().includes('read')) {
+                challenge.category = 'Study';
+            } else if (challenge.name.toLowerCase().includes('meditation') || challenge.name.toLowerCase().includes('mindfulness')) {
+                challenge.category = 'Mindfulness';
+            } else {
+                challenge.category = 'Challenge';
+            }
+            
+            challenge.created_at = challenge.start_date;
+            
+            if (streak > longestStreak) {
+                longestStreak = streak;
+                longestStreakHabit = challenge.name;
+            }
+        }
+
+        // Combine habits and challenges
+        const allItems = [...habits, ...challenges];
+
         // Overall statistics
         const totalHabits = habits.length;
-        const totalCompletions = habits.reduce((sum, h) => sum + parseInt(h.total_completions), 0);
+        const totalChallenges = challenges.length;
+        const totalCompletions = allItems.reduce((sum, item) => sum + parseInt(item.total_completions), 0);
         
-        // Today's statistics
+        // Today's statistics (including both habits and challenges)
         const today = new Date().toISOString().split('T')[0];
         const todayResult = await db.query(`
-            SELECT COUNT(*) FILTER (WHERE hl.status = 'done') as completed_today,
-                   COUNT(*) as total_today
+            SELECT 
+                COUNT(DISTINCT h.id) as total_habits,
+                COUNT(DISTINCT CASE WHEN hl.status = 'done' THEN h.id END) as completed_habits,
+                COUNT(DISTINCT uc.id) as total_challenges,
+                COUNT(DISTINCT CASE WHEN cl.status = 'done' THEN uc.id END) as completed_challenges
             FROM habits h
             LEFT JOIN habit_logs hl ON h.id = hl.habit_id AND hl.date = $1
+            LEFT JOIN user_challenges uc ON uc.user_id = $2 AND uc.status = 'in_progress'
+            LEFT JOIN challenge_logs cl ON cl.user_challenge_id = uc.id AND cl.date = $1
             WHERE h.user_id = $2
         `, [today, userId]);
         
-        const todayStats = todayResult.rows[0];
-        const completionRate = todayStats.total_today > 0 ? 
-            Math.round((todayStats.completed_today / todayStats.total_today) * 100) : 0;
+        const todayData = todayResult.rows[0];
+        const totalToday = parseInt(todayData.total_habits) + parseInt(todayData.total_challenges);
+        const completedToday = parseInt(todayData.completed_habits) + parseInt(todayData.completed_challenges);
+        const completionRate = totalToday > 0 ? Math.round((completedToday / totalToday) * 100) : 0;
+        
+        const todayStats = {
+            completed_today: completedToday,
+            total_today: totalToday
+        };
 
-        // Weekly statistics
+        // Weekly statistics (including both habits and challenges)
         const weeklyResult = await db.query(`
             SELECT 
-                COUNT(DISTINCT hl.date) as active_days,
-                COUNT(*) FILTER (WHERE hl.status = 'done') as total_completions,
-                COUNT(DISTINCT h.id) as habits_worked_on
+                COUNT(DISTINCT hl.date) + COUNT(DISTINCT cl.date) as active_days,
+                COALESCE(COUNT(DISTINCT hl.id) FILTER (WHERE hl.status = 'done'), 0) + 
+                COALESCE(COUNT(DISTINCT cl.id) FILTER (WHERE cl.status = 'done'), 0) as total_completions,
+                COUNT(DISTINCT h.id) + COUNT(DISTINCT uc.id) as items_worked_on
             FROM habits h
             LEFT JOIN habit_logs hl ON h.id = hl.habit_id 
                 AND hl.date >= CURRENT_DATE - INTERVAL '7 days'
+            LEFT JOIN user_challenges uc ON uc.user_id = $1 AND uc.status = 'in_progress'
+            LEFT JOIN challenge_logs cl ON cl.user_challenge_id = uc.id 
+                AND cl.date >= CURRENT_DATE - INTERVAL '7 days'
             WHERE h.user_id = $1
         `, [userId]);
         
@@ -87,11 +147,12 @@ exports.getAnalytics = async (req, res, next) => {
         const mostProductiveDay = productiveDayResult.rows.length > 0 ? 
             productiveDayResult.rows[0].day_name.trim() : 'N/A';
 
-        // Get completion data for the last 30 days
+        // Get completion data for the last 30 days (including both habits and challenges)
         const chartDataResult = await db.query(`
             SELECT 
                 date_series.date,
-                COUNT(hl.id) FILTER (WHERE hl.status = 'done') as completions
+                COALESCE(COUNT(DISTINCT hl.id) FILTER (WHERE hl.status = 'done'), 0) + 
+                COALESCE(COUNT(DISTINCT cl.id) FILTER (WHERE cl.status = 'done'), 0) as completions
             FROM (
                 SELECT generate_series(
                     CURRENT_DATE - INTERVAL '29 days',
@@ -101,6 +162,8 @@ exports.getAnalytics = async (req, res, next) => {
             ) date_series
             LEFT JOIN habit_logs hl ON date_series.date = hl.date
             LEFT JOIN habits h ON hl.habit_id = h.id AND h.user_id = $1
+            LEFT JOIN challenge_logs cl ON date_series.date = cl.date
+            LEFT JOIN user_challenges uc ON cl.user_challenge_id = uc.id AND uc.user_id = $1
             GROUP BY date_series.date
             ORDER BY date_series.date
         `, [userId]);
@@ -134,8 +197,9 @@ exports.getAnalytics = async (req, res, next) => {
             title: 'Analytics',
             currentUser: req.session.user,
             user,
-            habits,
+            habits: allItems,
             totalHabits,
+            totalChallenges,
             totalCompletions,
             longestStreak,
             longestStreakHabit,
@@ -148,7 +212,7 @@ exports.getAnalytics = async (req, res, next) => {
             weeklyStats: {
                 activeDays: weeklyStats.active_days,
                 totalCompletions: weeklyStats.total_completions,
-                habitsWorkedOn: weeklyStats.habits_worked_on
+                items_worked_on: weeklyStats.items_worked_on
             },
             badges: badgesResult.rows,
             chartData,
@@ -166,11 +230,11 @@ exports.getChartData = async (req, res, next) => {
     
     try {
         const userId = req.session.user.id;
-        // Build a reliable per-user 30-day completion series using a safe LEFT JOIN
+        // Build a reliable per-user 30-day completion series including both habits and challenges
         const last30Days = await db.query(`
             SELECT 
                 dd::date AS day,
-                COUNT(hl.id) AS completions
+                COALESCE(COUNT(DISTINCT hl.id), 0) + COALESCE(COUNT(DISTINCT cl.id), 0) AS completions
             FROM generate_series(
                 CURRENT_DATE - INTERVAL '29 day',
                 CURRENT_DATE,
@@ -182,6 +246,12 @@ exports.getChartData = async (req, res, next) => {
                 JOIN habits h ON hl.habit_id = h.id
                 WHERE h.user_id = $1 AND hl.status = 'done'
             ) hl ON dd::date = hl.date
+            LEFT JOIN (
+                SELECT cl.id, cl.date
+                FROM challenge_logs cl
+                JOIN user_challenges uc ON cl.user_challenge_id = uc.id
+                WHERE uc.user_id = $1 AND cl.status = 'done'
+            ) cl ON dd::date = cl.date
             GROUP BY dd
             ORDER BY dd;
         `, [userId]);

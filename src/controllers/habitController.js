@@ -1,5 +1,5 @@
 const db = require('../models/db');
-const { calculateStreak, awardBadges } = require('../utils/gamification');
+const { calculateStreak, awardBadges, getStreakMultiplier } = require('../utils/gamification');
 
 exports.getAddHabit = (req, res) => {
     if (!req.session.user) return res.redirect('/login');
@@ -99,13 +99,33 @@ exports.toggleHabitStatus = async (req, res, next) => {
 
         // Award or remove XP based on completion status
         if (newStatus === 'done' && !wasCompleted) {
-            // Completed - award XP
-            await db.query('UPDATE users SET xp = xp + 10 WHERE id = $1', [userId]);
+            // Calculate current streak
+            const streak = await calculateStreak(id);
             
-            // Check for streak and award badges
+            // Get streak multiplier
+            const multiplier = getStreakMultiplier(streak);
+            
+            // Base XP for completing a habit
+            const baseXP = 10;
+            const earnedXP = Math.round(baseXP * multiplier);
+            
+            // Award XP with streak bonus
+            await db.query('UPDATE users SET xp = xp + $1 WHERE id = $2', [earnedXP, userId]);
+            
+            // Check for streak milestones and award badges + bonus XP
             try {
-                const streak = await calculateStreak(id);
-                await awardBadges(userId, streak);
+                const badgeReward = await awardBadges(userId, streak);
+                
+                res.json({ 
+                    success: true, 
+                    status: newStatus,
+                    completed: newStatus === 'done',
+                    xpEarned: earnedXP,
+                    streak: streak,
+                    multiplier: multiplier,
+                    badgeReward: badgeReward
+                });
+                return;
             } catch (streakErr) {
                 console.error('Error calculating streak:', streakErr);
             }

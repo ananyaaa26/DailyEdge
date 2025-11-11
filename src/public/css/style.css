@@ -1006,22 +1006,47 @@ body {
   aspect-ratio: 1 / 1;
   display: flex;
   flex-direction: column;
+  padding: 0.75rem !important;
+}
+
+.habit-card.challenge-card .habit-header {
+  margin-bottom: 0.5rem !important;
 }
 
 .habit-card.challenge-card .habit-content {
   flex: 1;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 0.25rem !important;
+  margin-bottom: 0.5rem !important;
 }
 
 .habit-card.challenge-card .habit-title {
   overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
   -webkit-box-orient: vertical;
-  line-height: 1.4;
-  max-height: 2.8em;
+  line-height: 1.2 !important;
+  max-height: 3.6em;
+  font-size: 0.9rem !important;
+  margin: 0 0 0.3rem !important;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.habit-card.challenge-card .habit-category {
+  margin: 0 auto 0.3rem !important;
+  font-size: 0.75rem !important;
+  padding: 0.2rem 0.5rem !important;
+}
+
+.habit-card.challenge-card .habit-streak {
+  font-size: 0.8rem !important;
 }
 
 .habit-card.challenge-card.completed {
@@ -3597,11 +3622,57 @@ h6 {
 /* Tables */
 .table {
   color: var(--text-primary) !important;
+  background: white !important;
+  margin-bottom: 0 !important;
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+}
+
+.table thead {
+  background: #f9fafb !important;
+  color: #1f2937 !important;
+}
+
+.table thead th {
+  background: #f9fafb !important;
+  color: #1f2937 !important;
+  border-bottom: 2px solid #e5e7eb !important;
+  font-weight: 600 !important;
+  padding: 1rem !important;
+  white-space: nowrap !important;
+  text-align: left !important;
+}
+
+.table tbody tr {
+  background: white !important;
+  border-bottom: 1px solid #e5e7eb !important;
+  transition: background-color 0.2s ease !important;
+}
+
+.table tbody tr:hover {
+  background: #f9fafb !important;
+}
+
+.table tbody td {
+  color: #1f2937 !important;
+  padding: 0.75rem 1rem !important;
+  vertical-align: middle !important;
+  background: white !important;
+}
+
+.table-hover tbody tr:hover td {
+  background: #f9fafb !important;
+}
+
+.table-responsive {
+  border-radius: 8px !important;
+  overflow-x: auto !important;
+  background: white !important;
 }
 
 .table-striped > tbody > tr:nth-of-type(odd) > td,
 .table-striped > tbody > tr:nth-of-type(odd) > th {
-  background: var(--bg-secondary) !important;
+  background: #f9fafb !important;
 }
 
 /* Alerts */

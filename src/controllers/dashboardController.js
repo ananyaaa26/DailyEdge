@@ -1,5 +1,6 @@
 const db = require('../models/db');
 const { getQuote } = require('../utils/quoteFetcher');
+const { calculateStreak, calculateChallengeStreak } = require('../utils/gamification');
 
 // Ensure "exports." is here. This is the fix.
 exports.getDashboard = async (req, res, next) => {
@@ -22,14 +23,9 @@ exports.getDashboard = async (req, res, next) => {
         
         const habits = habitsResult.rows;
 
-        // Calculate simple streak for each habit (days completed in the last week)
+        // Calculate consecutive streak for each habit (resets to 0 if a day is missed)
         for (const habit of habits) {
-            const streakResult = await db.query(`
-                SELECT COUNT(*) as streak
-                FROM habit_logs 
-                WHERE habit_id = $1 AND status = 'done' AND date >= CURRENT_DATE - INTERVAL '7 days'
-            `, [habit.id]);
-            habit.streak = parseInt(streakResult.rows[0]?.streak || 0);
+            habit.streak = await calculateStreak(habit.id);
         }
 
         // Fetch active challenges
@@ -54,14 +50,17 @@ exports.getDashboard = async (req, res, next) => {
                 challenge.progress = Math.min(daysPassed, challenge.duration_days);
                 challenge.days_remaining = Math.max(0, challenge.duration_days - daysPassed);
                 
-                // Calculate streak (days completed in a row)
-                const streakResult = await db.query(`
-                    SELECT COUNT(*) as streak
-                    FROM challenge_logs 
-                    WHERE user_challenge_id = (SELECT id FROM user_challenges WHERE user_id = $1 AND challenge_id = $2) 
-                    AND status = 'done' AND date >= CURRENT_DATE - INTERVAL '7 days'
-                `, [userId, challenge.id]);
-                challenge.streak = parseInt(streakResult.rows[0]?.streak || 0);
+                // Calculate consecutive streak (resets to 0 if a day is missed)
+                const userChallengeResult = await db.query(
+                    'SELECT id FROM user_challenges WHERE user_id = $1 AND challenge_id = $2',
+                    [userId, challenge.id]
+                );
+                if (userChallengeResult.rows.length > 0) {
+                    const userChallengeId = userChallengeResult.rows[0].id;
+                    challenge.streak = await calculateChallengeStreak(userChallengeId);
+                } else {
+                    challenge.streak = 0;
+                }
                 
                 // Set category for display
                 if (challenge.name.toLowerCase().includes('fitness') || challenge.name.toLowerCase().includes('workout')) {
