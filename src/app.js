@@ -9,6 +9,7 @@ const habitRoutes = require('./routes/habits');
 const dashboardRoutes = require('./routes/dashboard');
 const analyticsRoutes = require('./routes/analytics');
 const challengesRoutes = require('./routes/challenges');
+const adminRoutes = require('./routes/admin');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -40,6 +41,10 @@ app.use((req, res, next) => {
     next();
 });
 
+// Global suspension check middleware
+const { checkSuspended } = require('./middleware/auth');
+app.use(checkSuspended);
+
 // Routes
 app.use('/', mainRoutes);
 app.use('/', authRoutes);
@@ -47,6 +52,7 @@ app.use('/habits', habitRoutes);
 app.use('/dashboard', dashboardRoutes);
 app.use('/analytics', analyticsRoutes);
 app.use('/challenges', challengesRoutes);
+app.use('/', adminRoutes);
 
 // Cron Job for Reminders (logs to console)
 // Runs every day at 9:00 AM
