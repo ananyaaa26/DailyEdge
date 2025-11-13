@@ -110,6 +110,16 @@ exports.postLogin = async (req, res, next) => {
 
         const user = result.rows[0];
         
+        // Check if user is suspended
+        if (user.is_suspended) {
+            errors.push('Your account has been suspended. Please contact the administrator.');
+            return res.render('pages/login', { 
+                title: 'Login', 
+                errors, 
+                formData: { email } 
+            });
+        }
+        
         // Handle both hashed and plain text passwords for backward compatibility
         let passwordValid = false;
         

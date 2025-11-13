@@ -1,0 +1,33 @@
+<%- include('../partials/header') %>
+
+<div class="row justify-content-center mt-5">
+    <div class="col-md-8">
+        <div class="card shadow-sm border-danger">
+            <div class="card-body p-5 text-center">
+                <div style="font-size: 4rem; margin-bottom: 1rem;">🚫</div>
+                <h1 class="card-title text-danger mb-4">Account Suspended</h1>
+                
+                <div class="alert alert-danger" role="alert">
+                    <h5 class="alert-heading">Your account has been suspended</h5>
+                    <hr>
+                    <p class="mb-0"><strong>Reason:</strong> <%= reason %></p>
+                </div>
+
+                <p class="lead mt-4">
+                    Your account access has been temporarily restricted.
+                </p>
+
+                <p class="text-muted">
+                    If you believe this is a mistake or would like to appeal this decision, 
+                    please contact the administrator.
+                </p>
+
+                <div class="mt-4">
+                    <a href="/" class="btn btn-outline-primary">Return to Home</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<%- include('../partials/footer') %>
