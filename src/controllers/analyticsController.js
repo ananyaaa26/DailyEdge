@@ -1,11 +1,27 @@
 const db = require('../models/db');
 const { calculateStreak, calculateChallengeStreak } = require('../utils/gamification');
+const redisClient = require('../config/redis');
 
 exports.getAnalytics = async (req, res, next) => {
     if (!req.session.user) return res.redirect('/login');
     
     try {
         const userId = req.session.user.id;
+        const cacheKey = `analytics:${userId}`;
+        
+        // Try cache first
+        const cached = await redisClient.get(cacheKey);
+        if (cached) {
+            console.log(`Analytics cache HIT for user ${userId}`);
+            const analyticsData = JSON.parse(cached);
+            return res.render('pages/analytics', {
+                title: 'Analytics',
+                ...analyticsData,
+                currentUser: req.session.user
+            });
+        }
+        
+        console.log(`Analytics cache MISS for user ${userId}`);
 
         // Get user stats
         const userResult = await db.query('SELECT username, xp, created_at FROM users WHERE id = $1', [userId]);
@@ -160,10 +176,10 @@ exports.getAnalytics = async (req, res, next) => {
                     '1 day'::interval
                 )::date as date
             ) date_series
-            LEFT JOIN habit_logs hl ON date_series.date = hl.date
-            LEFT JOIN habits h ON hl.habit_id = h.id AND h.user_id = $1
-            LEFT JOIN challenge_logs cl ON date_series.date = cl.date
-            LEFT JOIN user_challenges uc ON cl.user_challenge_id = uc.id AND uc.user_id = $1
+            LEFT JOIN habit_logs hl ON date_series.date = hl.date 
+                AND hl.habit_id IN (SELECT id FROM habits WHERE user_id = $1)
+            LEFT JOIN challenge_logs cl ON date_series.date = cl.date 
+                AND cl.user_challenge_id IN (SELECT id FROM user_challenges WHERE user_id = $1)
             GROUP BY date_series.date
             ORDER BY date_series.date
         `, [userId]);
@@ -193,9 +209,8 @@ exports.getAnalytics = async (req, res, next) => {
 
         const categoryStats = categoryResult.rows;
 
-        res.render('pages/analytics', {
-            title: 'Analytics',
-            currentUser: req.session.user,
+        // Prepare data for caching
+        const analyticsData = {
             user,
             habits: allItems,
             totalHabits,
@@ -217,6 +232,15 @@ exports.getAnalytics = async (req, res, next) => {
             badges: badgesResult.rows,
             chartData,
             categoryStats
+        };
+        
+        // Cache for 5 minutes
+        await redisClient.setEx(cacheKey, 300, JSON.stringify(analyticsData));
+
+        res.render('pages/analytics', {
+            title: 'Analytics',
+            ...analyticsData,
+            currentUser: req.session.user
         });
     } catch (err) {
         console.error('Analytics error:', err);
@@ -230,6 +254,17 @@ exports.getChartData = async (req, res, next) => {
     
     try {
         const userId = req.session.user.id;
+        const cacheKey = `chartdata:${userId}`;
+        
+        // Try cache first
+        const cached = await redisClient.get(cacheKey);
+        if (cached) {
+            console.log(`Chart data cache HIT for user ${userId}`);
+            return res.json(JSON.parse(cached));
+        }
+        
+        console.log(`Chart data cache MISS for user ${userId}`);
+        
         // Build a reliable per-user 30-day completion series including both habits and challenges
         const last30Days = await db.query(`
             SELECT 
@@ -259,7 +294,29 @@ exports.getChartData = async (req, res, next) => {
         const labels = last30Days.rows.map(row => new Date(row.day).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
         const data = last30Days.rows.map(row => parseInt(row.completions, 10));
 
-        res.json({ labels, data });
+        // Get category breakdown data
+        const categoryResult = await db.query(`
+            SELECT category, COUNT(*) as count
+            FROM habits
+            WHERE user_id = $1
+            GROUP BY category
+            ORDER BY count DESC
+        `, [userId]);
+
+        const categoryLabels = categoryResult.rows.map(row => row.category);
+        const categoryCounts = categoryResult.rows.map(row => parseInt(row.count, 10));
+
+        const chartData = { 
+            labels, 
+            data,
+            categoryLabels,
+            categoryCounts
+        };
+        
+        // Cache for 2 minutes
+        await redisClient.setEx(cacheKey, 120, JSON.stringify(chartData));
+        
+        res.json(chartData);
     } catch (err) {
         res.status(500).json({ error: 'Failed to fetch chart data' });
     }

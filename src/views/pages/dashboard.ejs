@@ -155,9 +155,19 @@
         <!-- Habits Section Header -->
         <div class="section-header">
             <h2 class="section-title">Your Habits</h2>
-            <a href="/habits/add" class="add-habit-btn">
-                Add New Habit
-            </a>
+            <div class="header-right">
+                <div class="view-toggle">
+                    <button class="view-btn" id="gridViewBtn" onclick="switchView('grid')" title="Grid View">
+                        <span>▦</span>
+                    </button>
+                    <button class="view-btn" id="listViewBtn" onclick="switchView('list')" title="List View">
+                        <span>☰</span>
+                    </button>
+                </div>
+                <a href="/habits/add" class="add-habit-btn">
+                    Add New Habit
+                </a>
+            </div>
         </div>
 
         <!-- Modern Habits Grid -->
@@ -207,6 +217,16 @@
                                     <span class="streak-icon">🔥</span>
                                     <span class="streak-text"><%= habit.streak || 0 %> day streak</span>
                                 </div>
+                                <% if (habit.duration_days && habit.days_remaining !== undefined) { %>
+                                <div class="habit-progress-info">
+                                    <span class="progress-days"><%= habit.progress %>/<%= habit.duration_days %> days</span>
+                                    <% if (habit.days_remaining > 0) { %>
+                                        <span class="days-left">• <%= habit.days_remaining %> days left</span>
+                                    <% } else { %>
+                                        <span class="days-left final">• Final day!</span>
+                                    <% } %>
+                                </div>
+                                <% } %>
                             </div>
                             <div class="habit-actions">
                                 <button class="action-btn-small" onclick="editHabit('<%= habit.id %>')" title="Edit Habit">
@@ -275,11 +295,253 @@
                 </div>
             <% } %>
         </div>
+
+        <!-- Completed Habits Section -->
+        <% if (completedHabits && completedHabits.length > 0) { %>
+        <div class="section-header" style="margin-top: 3rem;">
+            <h2 class="section-title">✅ Completed Habits</h2>
+        </div>
+        <div class="habits-container">
+            <div class="habits-grid">
+                <% completedHabits.forEach((habit) => { %>
+                    <div class="habit-card completed-habit" data-habit-id="<%= habit.id %>">
+                        <div class="habit-header">
+                            <div class="habit-icon">
+                                <span class="habit-emoji">🎉</span>
+                            </div>
+                            <span class="status-badge completed-badge">Completed!</span>
+                        </div>
+                        <div class="habit-content">
+                            <h3 class="habit-title"><%= habit.name %></h3>
+                            <p class="habit-category"><%= habit.category || 'General' %></p>
+                            <div class="habit-streak">
+                                <span class="streak-icon">🏆</span>
+                                <span class="streak-text"><%= habit.streak || habit.duration_days %> day streak achieved</span>
+                            </div>
+                            <p class="completion-date">Completed <%= new Date(habit.completed_at).toLocaleDateString() %></p>
+                        </div>
+                    </div>
+                <% }) %>
+            </div>
+        </div>
+        <% } %>
+
+        <!-- Failed Habits Section -->
+        <% if (failedHabits && failedHabits.length > 0) { %>
+        <div class="section-header" style="margin-top: 3rem;">
+            <h2 class="section-title">⚠️ Not Finished / Ended Habits</h2>
+        </div>
+        <div class="habits-container">
+            <div class="habits-grid">
+                <% failedHabits.forEach((habit) => { %>
+                    <div class="habit-card failed-habit" data-habit-id="<%= habit.id %>">
+                        <div class="habit-header">
+                            <div class="habit-icon">
+                                <span class="habit-emoji">💔</span>
+                            </div>
+                            <span class="status-badge failed-badge">Not Finished</span>
+                        </div>
+                        <div class="habit-content">
+                            <h3 class="habit-title"><%= habit.name %></h3>
+                            <p class="habit-category"><%= habit.category || 'General' %></p>
+                            <div class="habit-streak">
+                                <span class="streak-icon">📊</span>
+                                <span class="streak-text">Goal: <%= habit.duration_days %> days</span>
+                            </div>
+                            <p class="completion-date">Ended <%= new Date(habit.end_date).toLocaleDateString() %></p>
+                        </div>
+                        <div class="habit-actions">
+                            <button class="action-btn-small delete-btn" onclick="deleteHabit('<%= habit.id %>')" title="Delete Habit">
+                                🗑️
+                            </button>
+                        </div>
+                    </div>
+                <% }) %>
+            </div>
+        </div>
+        <% } %>
+
+        <!-- Completed Challenges Section -->
+        <% if (completedChallenges && completedChallenges.length > 0) { %>
+        <div class="section-header" style="margin-top: 3rem;">
+            <h2 class="section-title">🏅 Completed Challenges</h2>
+        </div>
+        <div class="habits-container">
+            <div class="habits-grid">
+                <% completedChallenges.forEach((challenge) => { %>
+                    <div class="habit-card challenge-card completed-habit" data-challenge-id="<%= challenge.id %>">
+                        <div class="habit-header">
+                            <div class="habit-icon challenge-icon">
+                                <span class="habit-emoji">🏆</span>
+                            </div>
+                            <span class="status-badge completed-badge">Challenge Done!</span>
+                        </div>
+                        <div class="habit-content">
+                            <h3 class="habit-title"><%= challenge.name %></h3>
+                            <p class="habit-category">+<%= challenge.xp_reward %> XP Earned</p>
+                            <div class="habit-streak">
+                                <span class="streak-icon">🔥</span>
+                                <span class="streak-text"><%= challenge.duration_days %> day challenge completed</span>
+                            </div>
+                            <p class="completion-date">Completed <%= new Date(challenge.completed_at).toLocaleDateString() %></p>
+                        </div>
+                    </div>
+                <% }) %>
+            </div>
+        </div>
+        <% } %>
+
+        <!-- Failed Challenges Section -->
+        <% if (failedChallenges && failedChallenges.length > 0) { %>
+        <div class="section-header" style="margin-top: 3rem;">
+            <h2 class="section-title">❌ Not Finished / Ended Challenges</h2>
+        </div>
+        <div class="habits-container">
+            <div class="habits-grid">
+                <% failedChallenges.forEach((challenge) => { %>
+                    <div class="habit-card challenge-card failed-habit" data-challenge-id="<%= challenge.id %>">
+                        <div class="habit-header">
+                            <div class="habit-icon challenge-icon">
+                                <span class="habit-emoji">⛔</span>
+                            </div>
+                            <span class="status-badge failed-badge">Challenge Ended</span>
+                        </div>
+                        <div class="habit-content">
+                            <h3 class="habit-title"><%= challenge.name %></h3>
+                            <p class="habit-category">Goal: <%= challenge.duration_days %> days</p>
+                            <div class="habit-streak">
+                                <span class="streak-icon">📉</span>
+                                <span class="streak-text">Streak not maintained</span>
+                            </div>
+                            <p class="completion-date">Ended <%= new Date(challenge.failed_at).toLocaleDateString() %></p>
+                        </div>
+                    </div>
+                <% }) %>
+            </div>
+        </div>
+        <% } %>
     </div>
 </div>
 
 <!-- JavaScript for Interactive Features -->
 <script>
+// ============================================
+// WEBSOCKET INITIALIZATION
+// ============================================
+const socket = io();
+const currentUserId = '<%= currentUser.id %>';
+
+// Join user-specific room
+socket.emit('join_user_room', currentUserId);
+
+// Listen for real-time habit updates
+socket.on('habit_update', function(data) {
+    console.log('Real-time habit update received:', data);
+    
+    // If habit was created, updated, or deleted, reload page to show changes
+    if (data.action === 'created' || data.action === 'updated' || data.action === 'deleted') {
+        console.log('Habit structure changed, reloading...');
+        window.location.reload();
+        return;
+    }
+    
+    // Otherwise, just update the existing card
+    updateHabitCardRealtime(data);
+    
+    // Always update XP display after habit completion
+    updateXPDisplay(data.xpEarned || 0, data.isCompleted);
+});
+
+// Listen for real-time challenge updates
+socket.on('challenge_update', function(data) {
+    console.log('Real-time challenge update received:', data);
+    updateChallengeCardRealtime(data);
+});
+
+// ============================================
+// STORAGE FEATURES INITIALIZATION
+// ============================================
+document.addEventListener('DOMContentLoaded', function() {
+    // 1. Show welcome message for new users (account created within last 5 minutes)
+    const userCreatedAt = new Date('<%= user.created_at %>');
+    const now = new Date();
+    const minutesSinceCreation = (now - userCreatedAt) / (1000 * 60);
+    
+    // Show welcome message only if account is less than 5 minutes old
+    if (minutesSinceCreation < 5) {
+        showWelcomeMessage();
+        console.log('Welcome message shown (new user)');
+    }
+    
+    // Restore saved view preference (grid or list)
+    const savedView = Preferences.dashboardView.get();
+    switchView(savedView);
+});
+
+// Show welcome message modal
+function showWelcomeMessage() {
+    const modal = document.createElement('div');
+    modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:10000;display:flex;align-items:center;justify-content:center;animation:fadeIn 0.3s ease;';
+    
+    modal.innerHTML = `
+        <div style="background:white;padding:2.5rem;border-radius:16px;max-width:500px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.3);animation:slideUp 0.4s ease;">
+            <div style="text-align:center;">
+                <div style="font-size:3rem;margin-bottom:1rem;">🎉</div>
+                <h2 style="font-size:1.75rem;font-weight:700;color:#111827;margin-bottom:1rem;">Welcome to DailyEdge!</h2>
+                <p style="font-size:1rem;color:#6B7280;margin-bottom:1.5rem;">
+                    Start building better habits today. Track your progress, earn XP, and achieve your goals one day at a time!
+                </p>
+                <div style="background:#F3F4F6;padding:1rem;border-radius:8px;margin-bottom:1.5rem;text-align:left;">
+                    <p style="font-size:0.875rem;color:#374151;margin:0.5rem 0;"><strong>✓</strong> Create custom habits</p>
+                    <p style="font-size:0.875rem;color:#374151;margin:0.5rem 0;"><strong>✓</strong> Join challenges</p>
+                    <p style="font-size:0.875rem;color:#374151;margin:0.5rem 0;"><strong>✓</strong> Track your analytics</p>
+                    <p style="font-size:0.875rem;color:#374151;margin:0.5rem 0;"><strong>✓</strong> Earn badges and XP</p>
+                </div>
+                <button onclick="closeWelcomeMessage()" style="background:#10B981;color:white;border:none;padding:0.75rem 2rem;border-radius:8px;font-weight:600;font-size:1rem;cursor:pointer;width:100%;transition:background 0.2s;">
+                    Get Started
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    window.closeWelcomeMessage = function() {
+        modal.style.animation = 'fadeOut 0.3s ease';
+        setTimeout(() => modal.remove(), 300);
+    };
+}
+
+// ============================================
+// VIEW TOGGLE FUNCTION (Grid/List)
+// ============================================
+function switchView(view) {
+    const habitsGrid = document.querySelector('.habits-grid');
+    const gridBtn = document.getElementById('gridViewBtn');
+    const listBtn = document.getElementById('listViewBtn');
+    
+    if (!habitsGrid || !gridBtn || !listBtn) return;
+    
+    // Update view
+    if (view === 'list') {
+        habitsGrid.classList.add('list-view');
+        habitsGrid.classList.remove('grid-view');
+        listBtn.classList.add('active');
+        gridBtn.classList.remove('active');
+    } else {
+        habitsGrid.classList.add('grid-view');
+        habitsGrid.classList.remove('list-view');
+        gridBtn.classList.add('active');
+        listBtn.classList.remove('active');
+    }
+    
+    // Save preference to localStorage
+    Preferences.dashboardView.set(view);
+}
+
+// ============================================
+// HABIT TOGGLE FUNCTION
+// ============================================
 async function toggleHabit(habitId, button) {
     try {
         // Show celebration loader for completion
@@ -322,6 +584,19 @@ async function toggleHabit(habitId, button) {
             
             // Update progress display
             updateProgressDisplay();
+            
+            // Always update XP display after habit toggle
+            console.log('Updating XP display, earned:', data.xpEarned);
+            updateXPDisplay(data.xpEarned || 0, isCompleted);
+            
+            // Emit real-time update via WebSocket
+            socket.emit('habit_completed', {
+                userId: currentUserId,
+                habitId: habitId,
+                isCompleted: isCompleted,
+                streak: data.streak || 0,
+                xpEarned: data.xpEarned || 0
+            });
             
             // Show success feedback with encouraging message
             if (isCompleted) {
@@ -394,6 +669,14 @@ async function toggleChallenge(challengeId, button) {
             // Update progress display
             updateProgressDisplay();
             
+            // Emit real-time update via WebSocket
+            socket.emit('challenge_completed', {
+                userId: currentUserId,
+                challengeId: challengeId,
+                isCompleted: isCompleted,
+                streak: data.streak || 0
+            });
+            
             // Show success feedback with encouraging message
             if (isCompleted) {
                 const encouragingMessages = [
@@ -424,9 +707,11 @@ async function toggleChallenge(challengeId, button) {
 
 async function updateProgressDisplay() {
     try {
-        const completedCards = document.querySelectorAll('.habit-card.completed').length;
-        const totalCards = document.querySelectorAll('.habit-card[data-habit-id], .habit-card[data-challenge-id]').length;
-        const percentage = totalCards > 0 ? Math.round((completedCards / totalCards) * 100) : 0;
+        console.log('Updating progress display...');
+        // Fetch fresh stats from server
+        const response = await fetch('/dashboard/stats');
+        const stats = await response.json();
+        console.log('Stats received:', stats);
         
         // Update circular progress
         const progressRing = document.querySelector('.progress-ring-fill');
@@ -435,19 +720,45 @@ async function updateProgressDisplay() {
         
         if (progressRing) {
             const circumference = 339.292;
-            const offset = circumference - (circumference * percentage) / 100;
+            const offset = circumference - (circumference * stats.completionPercentage) / 100;
             progressRing.style.strokeDashoffset = offset;
+            console.log('Updated progress ring to', stats.completionPercentage + '%');
         }
         
         if (progressPercentage) {
-            progressPercentage.textContent = percentage + '%';
+            progressPercentage.textContent = stats.completionPercentage + '%';
         }
         
-        // Update stats
+        // Update stats in circular progress
         if (progressStats.length >= 2) {
-            progressStats[0].textContent = completedCards;
-            progressStats[1].textContent = totalCards;
+            progressStats[0].textContent = stats.completedCount;
+            progressStats[1].textContent = stats.totalCount;
+            console.log('Updated stats:', stats.completedCount, '/', stats.totalCount);
         }
+        
+        // Update stat cards
+        const statCards = document.querySelectorAll('.stat-card');
+        statCards.forEach(card => {
+            const label = card.querySelector('.stat-label')?.textContent;
+            const valueElement = card.querySelector('.stat-value');
+            
+            if (label === 'Active Days' && valueElement) {
+                valueElement.textContent = stats.activeDays;
+            } else if (label === 'Completions' && valueElement) {
+                valueElement.textContent = stats.totalCompletions;
+            } else if (label === 'XP Points' && valueElement) {
+                valueElement.textContent = stats.xp;
+            }
+        });
+        
+        // Update XP in sidebar
+        const userXP = document.querySelector('.user-xp');
+        if (userXP && stats.xp !== undefined) {
+            const level = Math.floor(stats.xp / 100) + 1;
+            userXP.innerHTML = `<span class="interactive-icon">🌟</span> ${stats.xp} XP <span class="xp-badge">Level ${level}</span>`;
+        }
+        
+        console.log('Progress display updated successfully');
     } catch (error) {
         console.error('Error updating progress display:', error);
     }
@@ -493,6 +804,71 @@ async function deleteHabit(habitId) {
 
 function viewChallenge() {
     window.location.href = '/challenges';
+}
+
+// ============================================
+// REAL-TIME UPDATE HANDLERS
+// ============================================
+// Real-time XP update function
+function updateXPDisplay(xpEarned, isCompleted) {
+    // Show XP gain notification
+    if (isCompleted && xpEarned) {
+        showNotification(`+${xpEarned} XP earned!`, 'success');
+    }
+}
+
+function updateHabitCardRealtime(data) {
+    const habitCard = document.querySelector(`[data-habit-id="${data.habitId}"]`);
+    if (!habitCard) return;
+    
+    const toggleBtn = habitCard.querySelector('.habit-toggle-btn');
+    const toggleIcon = toggleBtn.querySelector('.toggle-icon');
+    const streakText = habitCard.querySelector('.streak-text');
+    
+    if (data.isCompleted) {
+        habitCard.classList.add('completed');
+        toggleIcon.innerHTML = '✓';
+    } else {
+        habitCard.classList.remove('completed');
+        toggleIcon.innerHTML = '<span class="empty-circle"></span>';
+    }
+    
+    // Update streak if available
+    if (streakText && data.streak !== undefined) {
+        streakText.textContent = `${data.streak} day streak`;
+    }
+    
+    // Update progress display
+    updateProgressDisplay();
+    
+    console.log('Habit card updated in real-time');
+}
+
+function updateChallengeCardRealtime(data) {
+    const challengeCard = document.querySelector(`[data-challenge-id="${data.challengeId}"]`);
+    if (!challengeCard) return;
+    
+    const toggleBtn = challengeCard.querySelector('.habit-toggle-btn');
+    const toggleIcon = toggleBtn.querySelector('.toggle-icon');
+    const streakText = challengeCard.querySelector('.streak-text');
+    
+    if (data.isCompleted) {
+        challengeCard.classList.add('completed');
+        toggleIcon.innerHTML = '✓';
+    } else {
+        challengeCard.classList.remove('completed');
+        toggleIcon.innerHTML = '<span class="empty-circle"></span>';
+    }
+    
+    // Update streak if available
+    if (streakText && data.streak !== undefined) {
+        streakText.textContent = `${data.streak} day streak`;
+    }
+    
+    // Update progress display
+    updateProgressDisplay();
+    
+    console.log('Challenge card updated in real-time');
 }
 
 function refreshDashboard() {

@@ -1,5 +1,6 @@
 const db = require('../models/db');
 const { calculateChallengeStreak, awardBadges, getStreakMultiplier } = require('../utils/gamification');
+const { invalidateChallengeCache, invalidateUserCache } = require('../utils/cacheHelper');
 
 exports.getChallengesPage = async (req, res, next) => {
     try {
@@ -88,6 +89,9 @@ exports.joinChallenge = async (req, res, next) => {
             'INSERT INTO user_challenges (user_id, challenge_id, status) VALUES ($1, $2, $3)',
             [userId, challengeId, 'in_progress']
         );
+        
+        // Invalidate challenge-related caches
+        await invalidateChallengeCache(userId);
 
         res.json({ success: true, message: 'Successfully joined the challenge!' });
     } catch (err) {
@@ -198,6 +202,9 @@ exports.toggleChallengeStatus = async (req, res, next) => {
             // Award XP with streak bonus
             await db.query('UPDATE users SET xp = xp + $1 WHERE id = $2', [earnedXP, userId]);
             
+            // Invalidate caches after XP update
+            await invalidateUserCache(userId);
+            
             // Check for streak milestones and award badges + bonus XP
             try {
                 const badgeReward = await awardBadges(userId, streak);
@@ -218,6 +225,9 @@ exports.toggleChallengeStatus = async (req, res, next) => {
         } else if (newStatus === 'not done' && wasCompleted) {
             // Uncompleted - remove XP (but don't go below 0)
             await db.query('UPDATE users SET xp = GREATEST(xp - 15, 0) WHERE id = $1', [userId]);
+            
+            // Invalidate caches after XP change
+            await invalidateUserCache(userId);
         }
 
         res.json({ 

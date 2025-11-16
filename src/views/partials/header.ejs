@@ -21,8 +21,25 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     
+    <!-- Load theme preference IMMEDIATELY (before CSS to prevent flash) -->
+    <script>
+        // Load saved theme from localStorage
+        (function() {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme) {
+                document.documentElement.setAttribute('data-theme', savedTheme);
+            }
+        })();
+    </script>
+    
     <!-- Custom styles -->
     <link rel="stylesheet" href="/css/style.css">
+    
+    <!-- Storage utilities - loaded early -->
+    <script src="/js/storage-utils.js"></script>
+    
+    <!-- Socket.IO Client -->
+    <script src="/socket.io/socket.io.js"></script>
     
     <!-- Preload JavaScript for better performance -->
     <link rel="preload" href="/js/animations.js" as="script">

@@ -265,83 +265,208 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-// Chart data from server
-const chartData = JSON.parse(document.getElementById('chartDataJson').textContent);
-const categoryStats = JSON.parse(document.getElementById('categoryStatsJson').textContent);
+// ============================================
+// WEBSOCKET SETUP FOR REAL-TIME ANALYTICS
+// ============================================
+const socket = io();
+const currentUserId = '<%= currentUser.id %>';
+let completionChart = null;
+let categoryChart = null;
 
-// Completion Trend Chart
-const ctx = document.getElementById('completionChart').getContext('2d');
-new Chart(ctx, {
-    type: 'line',
-    data: {
-        labels: chartData.map(d => new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })),
-        datasets: [{
-            label: 'Daily Completions',
-            data: chartData.map(d => d.completions),
-            borderColor: '#4facfe',
-            backgroundColor: 'rgba(79, 172, 254, 0.1)',
-            borderWidth: 3,
-            fill: true,
-            tension: 0.4,
-            pointBackgroundColor: '#4facfe',
-            pointBorderColor: '#ffffff',
-            pointBorderWidth: 2,
-            pointRadius: 5
-        }]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-            legend: {
-                display: false
-            }
-        },
-        scales: {
-            y: {
-                beginAtZero: true,
-                grid: {
-                    color: 'rgba(0,0,0,0.1)'
-                }
-            },
-            x: {
-                grid: {
-                    color: 'rgba(0,0,0,0.1)'
-                }
-            }
-        }
-    }
+// Join user-specific room
+socket.emit('join_user_room', currentUserId);
+
+// Listen for real-time habit/challenge updates
+socket.on('habit_update', function(data) {
+    console.log('Analytics: Habit update received', data);
+    refreshAnalyticsData();
 });
 
-// Category Chart
-const categoryCtx = document.getElementById('categoryChart').getContext('2d');
-new Chart(categoryCtx, {
-    type: 'doughnut',
-    data: {
-        labels: categoryStats.map(c => c.category || 'General'),
-        datasets: [{
-            data: categoryStats.map(c => c.completions),
-            backgroundColor: [
+socket.on('challenge_update', function(data) {
+    console.log('Analytics: Challenge update received', data);
+    refreshAnalyticsData();
+});
+
+// Function to refresh analytics data without page reload
+async function refreshAnalyticsData() {
+    try {
+        const response = await fetch('/analytics/data');
+        const data = await response.json();
+        
+        // Update completion chart
+        if (completionChart) {
+            completionChart.data.labels = data.labels;
+            completionChart.data.datasets[0].data = data.data;
+            completionChart.update('none'); // Update without animation for instant feedback
+        }
+        
+        // Update category chart
+        if (categoryChart && data.categoryLabels && data.categoryCounts) {
+            const colorPalette = [
                 '#667eea',
                 '#f093fb',
                 '#4facfe',
                 '#fa709a',
                 '#ffecd2',
-                '#fcb69f'
-            ],
-            borderWidth: 0
-        }]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-            legend: {
-                position: 'bottom'
-            }
+                '#fcb69f',
+                '#96e6a1',
+                '#d4a5a5',
+                '#ffccbc',
+                '#b2dfdb'
+            ];
+            
+            categoryChart.data.labels = data.categoryLabels;
+            categoryChart.data.datasets[0].data = data.categoryCounts;
+            // Update colors to match number of categories
+            categoryChart.data.datasets[0].backgroundColor = data.categoryLabels.map((_, index) => 
+                colorPalette[index % colorPalette.length]
+            );
+            categoryChart.update('none');
+        } else if (!categoryChart && data.categoryLabels && data.categoryCounts && data.categoryCounts.length > 0) {
+            // If chart doesn't exist but we now have data, reload the page to create it
+            console.log('Category data now available, reloading page...');
+            window.location.reload();
+            return;
         }
+        
+        console.log('Analytics data refreshed in real-time');
+    } catch (error) {
+        console.error('Error refreshing analytics:', error);
     }
-});
+}
+
+// ============================================
+// CHART INITIALIZATION
+// ============================================
+try {
+    // Chart data from server
+    const chartDataElement = document.getElementById('chartDataJson');
+    const categoryStatsElement = document.getElementById('categoryStatsJson');
+    
+    if (!chartDataElement || !categoryStatsElement) {
+        console.error('Chart data elements not found');
+        throw new Error('Missing chart data');
+    }
+    
+    const chartData = JSON.parse(chartDataElement.textContent);
+    const categoryStats = JSON.parse(categoryStatsElement.textContent);
+    
+    // Completion Trend Chart
+    const completionCanvas = document.getElementById('completionChart');
+    if (completionCanvas && chartData && chartData.length > 0) {
+        const ctx = completionCanvas.getContext('2d');
+        completionChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: chartData.map(d => {
+                    const date = new Date(d.date);
+                    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                }),
+                datasets: [{
+                    label: 'Daily Completions',
+                    data: chartData.map(d => parseInt(d.completions) || 0),
+                    borderColor: '#4facfe',
+                    backgroundColor: 'rgba(79, 172, 254, 0.1)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4,
+                    pointBackgroundColor: '#4facfe',
+                    pointBorderColor: '#ffffff',
+                    pointBorderWidth: 2,
+                    pointRadius: 5,
+                    pointHoverRadius: 7
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        padding: 12,
+                        titleFont: {
+                            size: 14
+                        },
+                        bodyFont: {
+                            size: 13
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1,
+                            precision: 0
+                        },
+                        grid: {
+                            color: 'rgba(0,0,0,0.1)'
+                        }
+                    },
+                    x: {
+                        grid: {
+                            color: 'rgba(0,0,0,0.1)'
+                        }
+                    }
+                }
+            }
+        });
+        console.log('Completion chart initialized successfully');
+    } else {
+        console.warn('Completion chart canvas not found or no data available');
+    }
+    
+    // Category Chart
+    const categoryCanvas = document.getElementById('categoryChart');
+    if (categoryCanvas && categoryStats && categoryStats.length > 0) {
+        const categoryCtx = categoryCanvas.getContext('2d');
+        categoryChart = new Chart(categoryCtx, {
+            type: 'doughnut',
+            data: {
+                labels: categoryStats.map(c => c.category || 'General'),
+                datasets: [{
+                    data: categoryStats.map(c => parseInt(c.habit_count) || 0),
+                    backgroundColor: [
+                        '#667eea',
+                        '#f093fb',
+                        '#4facfe',
+                        '#fa709a',
+                        '#ffecd2',
+                        '#fcb69f'
+                    ],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 15,
+                            font: {
+                                size: 12
+                            }
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        padding: 12
+                    }
+                }
+            }
+        });
+        console.log('Category chart initialized successfully');
+    } else {
+        console.warn('Category chart canvas not found or no data available');
+    }
+} catch (error) {
+    console.error('Error initializing charts:', error);
+}
 
 // Apply animation delays from data attributes
 document.querySelectorAll('[data-delay]').forEach(element => {

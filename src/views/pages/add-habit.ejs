@@ -66,21 +66,22 @@
                     </div>
 
                     <div class="mb-5">
-                        <label for="frequency" class="form-label">
-                            <span class="fw-semibold">Frequency</span>
+                        <label for="duration_days" class="form-label">
+                            <span class="fw-semibold">Number of Days</span>
                             <span class="text-danger">*</span>
                         </label>
-                        <input type="text" 
+                        <input type="number" 
                                class="form-control form-control-lg" 
-                               id="frequency" 
-                               name="frequency" 
-                               value="<%= habit ? habit.frequency : 'Daily' %>" 
+                               id="duration_days" 
+                               name="duration_days" 
+                               value="<%= habit ? habit.duration_days : '' %>" 
                                required
-                               placeholder="Daily, Weekly, etc."
-                               maxlength="50">
-                        <div class="form-text">How often do you want to perform this habit?</div>
+                               placeholder="e.g., 30"
+                               min="1"
+                               max="365">
+                        <div class="form-text">How many days do you want to track this habit?</div>
                         <div class="invalid-feedback">
-                            Please specify the frequency.
+                            Please enter the number of days (1-365).
                         </div>
                     </div>
 
@@ -141,6 +142,105 @@
         });
     }, false);
 })();
+
+// ============================================
+// AUTO-SAVE FORM DRAFT (sessionStorage - clears on tab close)
+// ============================================
+<% if (!habit) { %> <%# Only auto-save for new habits, not edits %>
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Checking for storage utilities...');
+    
+    // Check if storage utilities are loaded
+    if (typeof UIState === 'undefined') {
+        console.error('Storage utilities not loaded! Make sure storage-utils.js is included.');
+        return;
+    }
+    
+    const form = document.querySelector('form');
+    const nameInput = document.getElementById('name');
+    const categoryInput = document.getElementById('category');
+    const durationInput = document.getElementById('duration_days');
+    
+    if (!nameInput || !categoryInput || !durationInput) {
+        console.error('Form inputs not found');
+        return;
+    }
+    
+    console.log('Storage utilities loaded, setting up auto-save...');
+    
+    // Try to load draft from sessionStorage (clears when tab closes)
+    const savedDraft = UIState.formDraft.get('habitForm');
+    
+    console.log('Checking for saved draft...', savedDraft ? 'FOUND' : 'NOT FOUND');
+    
+    if (savedDraft) {
+        try {
+            console.log('Draft data:', savedDraft);aft);
+            
+            if (savedDraft.name) {
+                nameInput.value = savedDraft.name;
+                console.log('Restored name:', savedDraft.name);
+            }
+            if (savedDraft.category) {
+                categoryInput.value = savedDraft.category;
+                console.log('Restored category:', savedDraft.category);
+            }
+            if (savedDraft.duration_days) {
+                durationInput.value = savedDraft.duration_days;
+                console.log('Restored duration:', savedDraft.duration_days);
+            }
+            
+            // Show notification that draft was restored
+            console.log('Draft restored from current session');
+            
+            // Visual feedback
+            const notification = document.createElement('div');
+            notification.style.cssText = 'position:fixed;top:20px;right:20px;background:#10b981;color:white;padding:15px 20px;border-radius:8px;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,0.15);animation:slideIn 0.3s ease;';
+            notification.innerHTML = 'Draft restored from current session<br><small>' + savedDraft.name + '</small>';
+            document.body.appendChild(notification);
+            setTimeout(() => {
+                notification.style.animation = 'fadeOut 0.3s ease';
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        } catch (e) {
+            console.error('Error parsing draft:', e);
+        }
+    } else {
+        console.log('No saved draft found');
+    }
+    
+    // Auto-save on input (with debounce) - saves to sessionStorage
+    let saveTimeout;
+    function autoSaveDraft() {
+        clearTimeout(saveTimeout);
+        saveTimeout = setTimeout(() => {
+            const draft = {
+                name: nameInput.value,
+                category: categoryInput.value,
+                duration_days: durationInput.value,
+                savedAt: new Date().toISOString()
+            };
+            
+            // Only save if there's actual content
+            if (draft.name || draft.category || draft.duration_days) {
+                UIState.formDraft.set('habitForm', draft);
+                console.log('Draft auto-saved to sessionStorage');
+            }
+        }, 1000); // Save 1 second after user stops typing
+    }
+    
+    // Attach auto-save to all inputs
+    nameInput.addEventListener('input', autoSaveDraft);
+    categoryInput.addEventListener('change', autoSaveDraft);
+    durationInput.addEventListener('input', autoSaveDraft);
+    
+    // Clear draft on successful submit
+    form.addEventListener('submit', function() {
+        UIState.formDraft.clear('habitForm');
+        console.log('Draft cleared after submit');
+    });
+});
+<% } %>
 </script>
 
 <%- include('../partials/footer') %>
