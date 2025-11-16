@@ -1,8 +1,20 @@
 const db = require('../models/db');
+const redisClient = require('../config/redis');
 
 // Calculates the current streak for a given habit (consecutive days from today)
 const calculateStreak = async (habitId) => {
     try {
+        // Check cache first
+        const cacheKey = `streak:${habitId}`;
+        const cachedStreak = await redisClient.get(cacheKey);
+        
+        if (cachedStreak !== null) {
+            console.log(`Streak cache HIT for habit ${habitId}`);
+            return parseInt(cachedStreak);
+        }
+        
+        console.log(`Streak cache MISS for habit ${habitId}`);
+        
         // Get all completed dates for this habit, ordered from most recent
         const result = await db.query(`
             SELECT date 
@@ -11,7 +23,10 @@ const calculateStreak = async (habitId) => {
             ORDER BY date DESC
         `, [habitId]);
         
-        if (result.rows.length === 0) return 0;
+        if (result.rows.length === 0) {
+            await redisClient.setEx(cacheKey, 300, '0'); // Cache for 5 minutes
+            return 0;
+        }
         
         const completedDates = result.rows.map(row => new Date(row.date));
         const today = new Date();
@@ -24,7 +39,10 @@ const calculateStreak = async (habitId) => {
         const daysDiff = Math.floor((today - mostRecent) / (1000 * 60 * 60 * 24));
         
         // If last completion was more than 1 day ago, streak is broken
-        if (daysDiff > 1) return 0;
+        if (daysDiff > 1) {
+            await redisClient.setEx(cacheKey, 300, '0');
+            return 0;
+        }
         
         // Count consecutive days backwards from most recent
         let streak = 1;
@@ -44,6 +62,9 @@ const calculateStreak = async (habitId) => {
                 break; // Streak broken
             }
         }
+        
+        // Cache the calculated streak for 5 minutes
+        await redisClient.setEx(cacheKey, 300, streak.toString());
         
         return streak;
     } catch (error) {
@@ -55,6 +76,17 @@ const calculateStreak = async (habitId) => {
 // Calculates the current streak for a given challenge (consecutive days from today)
 const calculateChallengeStreak = async (userChallengeId) => {
     try {
+        // Check cache first
+        const cacheKey = `challenge_streak:${userChallengeId}`;
+        const cachedStreak = await redisClient.get(cacheKey);
+        
+        if (cachedStreak !== null) {
+            console.log(`Challenge streak cache HIT for ${userChallengeId}`);
+            return parseInt(cachedStreak);
+        }
+        
+        console.log(`Challenge streak cache MISS for ${userChallengeId}`);
+        
         // Get all completed dates for this challenge, ordered from most recent
         const result = await db.query(`
             SELECT date 
@@ -63,7 +95,10 @@ const calculateChallengeStreak = async (userChallengeId) => {
             ORDER BY date DESC
         `, [userChallengeId]);
         
-        if (result.rows.length === 0) return 0;
+        if (result.rows.length === 0) {
+            await redisClient.setEx(cacheKey, 300, '0');
+            return 0;
+        }
         
         const completedDates = result.rows.map(row => new Date(row.date));
         const today = new Date();
@@ -76,7 +111,10 @@ const calculateChallengeStreak = async (userChallengeId) => {
         const daysDiff = Math.floor((today - mostRecent) / (1000 * 60 * 60 * 24));
         
         // If last completion was more than 1 day ago, streak is broken
-        if (daysDiff > 1) return 0;
+        if (daysDiff > 1) {
+            await redisClient.setEx(cacheKey, 300, '0');
+            return 0;
+        }
         
         // Count consecutive days backwards from most recent
         let streak = 1;
@@ -96,6 +134,9 @@ const calculateChallengeStreak = async (userChallengeId) => {
                 break; // Streak broken
             }
         }
+        
+        // Cache the calculated streak for 5 minutes
+        await redisClient.setEx(cacheKey, 300, streak.toString());
         
         return streak;
     } catch (error) {

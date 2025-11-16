@@ -1,5 +1,6 @@
 const db = require('../models/db');
 const { calculateStreak, awardBadges, getStreakMultiplier } = require('../utils/gamification');
+const { invalidateUserCache, invalidateHabitCache } = require('../utils/cacheHelper');
 
 exports.getAddHabit = (req, res) => {
     if (!req.session.user) return res.redirect('/login');
@@ -8,12 +9,25 @@ exports.getAddHabit = (req, res) => {
 
 exports.postAddHabit = async (req, res, next) => {
     if (!req.session.user) return res.redirect('/login');
-    const { name, category, frequency } = req.body;
+    const { name, category, duration_days } = req.body;
     try {
         await db.query(
-            'INSERT INTO habits (user_id, name, category, frequency) VALUES ($1, $2, $3, $4)',
-            [req.session.user.id, name, category, frequency]
+            'INSERT INTO habits (user_id, name, category, duration_days) VALUES ($1, $2, $3, $4)',
+            [req.session.user.id, name, category, parseInt(duration_days)]
         );
+        
+        // Invalidate user caches
+        await invalidateUserCache(req.session.user.id);
+        
+        // Broadcast habit creation via WebSocket
+        const io = req.app.get('io');
+        if (io) {
+            io.to(`user_${req.session.user.id}`).emit('habit_update', {
+                userId: req.session.user.id,
+                action: 'created'
+            });
+        }
+        
         res.redirect('/dashboard');
     } catch (err) {
         next(err);
@@ -37,12 +51,26 @@ exports.getEditHabit = async (req, res, next) => {
 exports.postUpdateHabit = async (req, res, next) => {
     if (!req.session.user) return res.redirect('/login');
     const { id } = req.params;
-    const { name, category, frequency } = req.body;
+    const { name, category, duration_days } = req.body;
     try {
         await db.query(
-            'UPDATE habits SET name = $1, category = $2, frequency = $3 WHERE id = $4 AND user_id = $5',
-            [name, category, frequency, id, req.session.user.id]
+            'UPDATE habits SET name = $1, category = $2, duration_days = $3 WHERE id = $4 AND user_id = $5',
+            [name, category, parseInt(duration_days), id, req.session.user.id]
         );
+        
+        // Invalidate habit and user caches
+        await invalidateHabitCache(id, req.session.user.id);
+        
+        // Broadcast habit update via WebSocket
+        const io = req.app.get('io');
+        if (io) {
+            io.to(`user_${req.session.user.id}`).emit('habit_update', {
+                userId: req.session.user.id,
+                habitId: id,
+                action: 'updated'
+            });
+        }
+        
         res.redirect('/dashboard');
     } catch (err) {
         next(err);
@@ -54,6 +82,20 @@ exports.postDeleteHabit = async (req, res, next) => {
     const { id } = req.params;
     try {
         await db.query('DELETE FROM habits WHERE id = $1 AND user_id = $2', [id, req.session.user.id]);
+        
+        // Invalidate habit and user caches
+        await invalidateHabitCache(id, req.session.user.id);
+        
+        // Broadcast habit deletion via WebSocket
+        const io = req.app.get('io');
+        if (io) {
+            io.to(`user_${req.session.user.id}`).emit('habit_update', {
+                userId: req.session.user.id,
+                habitId: id,
+                action: 'deleted'
+            });
+        }
+        
         res.redirect('/dashboard');
     } catch (err) {
         next(err);
@@ -112,6 +154,9 @@ exports.toggleHabitStatus = async (req, res, next) => {
             // Award XP with streak bonus
             await db.query('UPDATE users SET xp = xp + $1 WHERE id = $2', [earnedXP, userId]);
             
+            // Invalidate user caches after XP update
+            await invalidateUserCache(userId);
+            
             // Check for streak milestones and award badges + bonus XP
             try {
                 const badgeReward = await awardBadges(userId, streak);
@@ -132,6 +177,9 @@ exports.toggleHabitStatus = async (req, res, next) => {
         } else if (newStatus === 'not done' && wasCompleted) {
             // Uncompleted - remove XP (but don't go below 0)
             await db.query('UPDATE users SET xp = GREATEST(xp - 10, 0) WHERE id = $1', [userId]);
+            
+            // Invalidate user caches after XP change
+            await invalidateUserCache(userId);
         }
 
         res.json({ 

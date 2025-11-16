@@ -135,7 +135,7 @@
                         <thead>
                             <tr>
                                 <th>Name</th>
-                                <th>Frequency</th>
+                                <th>Duration (Days)</th>
                                 <th>Current Streak</th>
                                 <th>Created</th>
                             </tr>
@@ -144,7 +144,7 @@
                             <% habits.forEach(habit => { %>
                                 <tr>
                                     <td><%= habit.name %></td>
-                                    <td><span class="badge bg-info"><%= habit.frequency %></span></td>
+                                    <td><span class="badge bg-info"><%= habit.duration_days %> days</span></td>
                                     <td><%= habit.current_streak || 0 %> days</td>
                                     <td><%= new Date(habit.created_at).toLocaleDateString() %></td>
                                 </tr>

@@ -3,6 +3,12 @@ const express = require('express');
 const session = require('express-session');
 const path = require('path');
 const cron = require('node-cron');
+const http = require('http');
+const { Server } = require('socket.io');
+
+// Redis connection
+const redisClient = require('./config/redis');
+
 const mainRoutes = require('./routes/main');
 const authRoutes = require('./routes/auth');
 const habitRoutes = require('./routes/habits');
@@ -10,7 +16,11 @@ const dashboardRoutes = require('./routes/dashboard');
 const analyticsRoutes = require('./routes/analytics');
 const challengesRoutes = require('./routes/challenges');
 const adminRoutes = require('./routes/admin');
+
 const app = express();
+const server = http.createServer(app);
+const io = new Server(server);
+
 const PORT = process.env.PORT || 3000;
 
 // Middleware
@@ -58,7 +68,7 @@ app.use('/', adminRoutes);
 // Runs every day at 9:00 AM
 cron.schedule('0 9 * * *', () => {
   console.log('---------------------');
-  console.log('🚀 DailyEdge Reminder: Don\'t forget to complete your habits today!');
+  console.log('DailyEdge Reminder: Don\'t forget to complete your habits today!');
   console.log('---------------------');
 });
 
@@ -74,6 +84,40 @@ app.use((err, req, res, next) => {
     res.status(500).render('pages/500', { title: 'Server Error' });
 });
 
-app.listen(PORT, () => {
-    console.log(`🚀 Server is running on http://localhost:${PORT}`);
+// ============================================
+// WEBSOCKET SETUP
+// ============================================
+io.on('connection', (socket) => {
+    console.log('User connected:', socket.id);
+    
+    // Join user-specific room
+    socket.on('join_user_room', (userId) => {
+        socket.join(`user_${userId}`);
+        console.log(`User ${userId} joined room: user_${userId}`);
+    });
+    
+    // Handle habit completion broadcast
+    socket.on('habit_completed', (data) => {
+        console.log('Habit completed:', data);
+        // Broadcast to all user's connected sessions
+        io.to(`user_${data.userId}`).emit('habit_update', data);
+    });
+    
+    // Handle challenge completion broadcast
+    socket.on('challenge_completed', (data) => {
+        console.log('Challenge completed:', data);
+        // Broadcast to all user's connected sessions
+        io.to(`user_${data.userId}`).emit('challenge_update', data);
+    });
+    
+    socket.on('disconnect', () => {
+        console.log('User disconnected:', socket.id);
+    });
+});
+
+// Make io accessible to routes
+app.set('io', io);
+
+server.listen(PORT, () => {
+    console.log(`Server is running on http://localhost:${PORT}`);
 });
