@@ -7,4 +7,4 @@ router.get('/', requireLogin, checkSuspended, dashboardController.getDashboard);
 router.get('/xp', requireLogin, checkSuspended, dashboardController.getUserXP);
 router.get('/stats', requireLogin, checkSuspended, dashboardController.getDashboardStats);
 
-module.exports = router;
+module.exports=router;
