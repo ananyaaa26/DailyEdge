@@ -6,7 +6,7 @@ exports.getChallengesPage = async (req, res, next) => {
     try {
         const userId = req.session.user.id;
         
-        // Fetch all available challenges with user participation status
+        // Fetch all available challenges with user participation Status
         const allChallengesResult = await db.query(`
             SELECT c.*, 
                    uc.status as user_status, 
