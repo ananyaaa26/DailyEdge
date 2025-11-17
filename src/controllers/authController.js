@@ -29,7 +29,7 @@ exports.postSignup = async (req, res, next) => {
     }
 
     try {
-        // Check if user already exists
+        // Check if user already exists or not
         const existingUser = await db.query('SELECT * FROM users WHERE email = $1 OR username = $2', [email, username]);
         if (existingUser.rows.length > 0) {
             const existingField = existingUser.rows[0].email === email ? 'email' : 'username';
