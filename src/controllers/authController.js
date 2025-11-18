@@ -19,7 +19,6 @@ exports.postSignup = async (req, res, next) => {
     if (!password || password.length < 6) {
         errors.push('Password must be at least 6 characters long');
     }
-
     if (errors.length > 0) {
         return res.render('pages/signup', { 
             title: 'Sign Up', 
