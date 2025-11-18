@@ -200,9 +200,8 @@
                             <div class="card">
                                 <div class="card-body text-center">
                                     <div style="font-size: 2rem;">🏆</div>
-                                    <strong><%= badge.name %></strong>
-                                    <p class="text-muted small mb-0"><%= badge.description || 'No description' %></p>
-                                    <small class="text-muted"><%= new Date(badge.earned_at).toLocaleDateString() %></small>
+                                    <strong><%= badge.badge_name %></strong>
+                                    <p class="text-muted small mb-0">Awarded on <%= new Date(badge.awarded_at).toLocaleDateString() %></p>
                                 </div>
                             </div>
                         </div>

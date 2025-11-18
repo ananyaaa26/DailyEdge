@@ -255,11 +255,11 @@ exports.updateUserXP = async (req, res, next) => {
 exports.awardBadge = async (req, res, next) => {
     try {
         const userId = req.params.id;
-        const { badgeName, description } = req.body;
+        const { badgeName } = req.body;
 
         await db.query(
-            'INSERT INTO badges (user_id, name, description) VALUES ($1, $2, $3)',
-            [userId, badgeName, description || 'Awarded by admin']
+            'INSERT INTO badges (user_id, badge_name) VALUES ($1, $2)',
+            [userId, badgeName]
         );
 
         // Log activity
