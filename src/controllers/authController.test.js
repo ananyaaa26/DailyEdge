@@ -102,7 +102,7 @@ describe('Authentication Controller Tests', () => {
     // ==========================================
     // LOGIN TESTS
     // ==========================================
-
+    
     describe('postLogin', () => {
         test('should reject login with missing credentials', async () => {
             req.body = {
