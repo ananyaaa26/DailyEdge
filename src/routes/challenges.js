@@ -7,5 +7,5 @@ router.get('/', requireLogin, checkSuspended, challengesController.getChallenges
 router.post('/join/:id', requireLogin, checkSuspended, challengesController.joinChallenge);
 router.post('/complete/:id', requireLogin, checkSuspended, challengesController.completeChallenge);
 router.post('/toggle/:id', requireLogin, checkSuspended, challengesController.toggleChallengeStatus);
-
+// export
 module.exports = router;
