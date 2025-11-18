@@ -152,6 +152,29 @@
             </div>
         </div>
 
+        <!-- Achievement Showcase -->
+        <% if (recentBadges && recentBadges.length > 0) { %>
+        <div class="achievement-showcase" style="margin: 2rem 0;">
+            <div class="section-header" style="margin-bottom: 1.5rem;">
+                <h2 class="section-title">🏆 Achievement Showcase</h2>
+                <a href="/analytics" class="view-all-link" style="color: #10b981; text-decoration: none; font-size: 0.9rem;">
+                    View All →
+                </a>
+            </div>
+            <div class="badges-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem;">
+                <% recentBadges.forEach(badge => { %>
+                <div class="badge-card" style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border-radius: 12px; padding: 1.5rem; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.05); transition: transform 0.2s, box-shadow 0.2s;">
+                    <div class="badge-icon" style="font-size: 3rem; margin-bottom: 0.5rem;">🏆</div>
+                    <h4 style="font-size: 0.95rem; font-weight: 600; color: #065f46; margin: 0 0 0.25rem 0;"><%= badge.badge_name %></h4>
+                    <p style="font-size: 0.75rem; color: #059669; margin: 0;">
+                        <%= new Date(badge.earned_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) %>
+                    </p>
+                </div>
+                <% }); %>
+            </div>
+        </div>
+        <% } %>
+
         <!-- Habits Section Header -->
         <div class="section-header">
             <h2 class="section-title">Your Habits</h2>
@@ -1033,6 +1056,31 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <!-- Quick Add Modal Styles -->
 <style>
+.badge-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 16px rgba(16, 185, 129, 0.15) !important;
+}
+
+.view-all-link:hover {
+    color: #059669 !important;
+    text-decoration: underline !important;
+}
+
+.achievement-showcase {
+    animation: fadeInUp 0.6s ease-out;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
 .quick-add-overlay {
     position: fixed;
     top: 0;

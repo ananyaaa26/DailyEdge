@@ -190,6 +190,13 @@ exports.getDashboard = async (req, res, next) => {
                 parseInt(challengeWeeklyStatsResult.rows[0]?.total_completions || 0)
         };
 
+        // Get recent badges (last 5)
+        const badgesResult = await db.query(
+            'SELECT badge_name, earned_at FROM badges WHERE user_id = $1 ORDER BY earned_at DESC LIMIT 5',
+            [userId]
+        );
+        const recentBadges = badgesResult.rows;
+
         // Prepare data for caching
         const dashboardData = {
             habits,
@@ -202,6 +209,7 @@ exports.getDashboard = async (req, res, next) => {
             totalCount,
             completionPercentage,
             weeklyStats,
+            recentBadges,
             user: user || req.session.user
         };
         
