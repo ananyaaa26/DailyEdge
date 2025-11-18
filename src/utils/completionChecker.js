@@ -24,7 +24,7 @@ async function checkHabitCompletion(habitId) {
         if (habit.status !== 'in_progress') {
             return { updated: false, reason: 'Already finalized', status: habit.status };
         }
-
+        //date
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const startDate = new Date(habit.created_at);
