@@ -142,11 +142,11 @@
         });
     }, false);
 })();
+</script>
 
-// ============================================
-// AUTO-SAVE FORM DRAFT (sessionStorage - clears on tab close)
-// ============================================
-<% if (!habit) { %> <%# Only auto-save for new habits, not edits %>
+<!-- AUTO-SAVE FORM DRAFT (sessionStorage - clears on tab close) -->
+<% if (!habit) { %>
+<script>
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Checking for storage utilities...');
     
@@ -175,7 +175,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     if (savedDraft) {
         try {
-            console.log('Draft data:', savedDraft);aft);
+            console.log('Draft data:', savedDraft);
             
             if (savedDraft.name) {
                 nameInput.value = savedDraft.name;
@@ -240,7 +240,7 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('Draft cleared after submit');
     });
 });
-<% } %>
 </script>
+<% } %>
 
 <%- include('../partials/footer') %>
