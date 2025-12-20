@@ -7,7 +7,8 @@
     "start": "node src/app.js",
     "dev": "nodemon src/app.js",
     "test": "jest",
-    "test:watch": "jest --watch"
+    "test:watch": "jest --watch",
+    "test:browser": "node tests/integration/login.test.js"
   },
   "keywords": [
     "habit",
@@ -19,6 +20,7 @@
   "author": "Your Name",
   "license": "ISC",
   "dependencies": {
+    "aws": "^0.0.3-2",
     "axios": "^1.12.2",
     "bcrypt": "^6.0.0",
     "chart.js": "^4.5.0",
@@ -33,7 +35,8 @@
   },
   "devDependencies": {
     "jest": "^29.7.0",
-    "nodemon": "^3.1.10"
+    "nodemon": "^3.1.10",
+    "puppeteer": "^22.15.0"
   },
   "type": "commonjs"
 }
