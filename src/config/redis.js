@@ -1,11 +1,8 @@
-const redis = require('redis');
+const { createClient } = require('redis');
 
-// Create Redis client
-const redisClient = redis.createClient({
-    socket: {
-        host: 'localhost',
-        port: 6379
-    }
+// Create Redis client using Railway-provided URL
+const redisClient = createClient({
+    url: process.env.REDIS_URL
 });
 
 redisClient.on('error', (err) => {
@@ -20,7 +17,7 @@ redisClient.on('ready', () => {
     console.log('Redis is ready to use');
 });
 
-// Connect to Redis
+// Connect to Redis safely
 (async () => {
     try {
         await redisClient.connect();

@@ -27,12 +27,17 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Session Configuration
+// ================================
+// Session Configuration (FIXED)
+// ================================
 app.use(session({
     secret: process.env.SESSION_SECRET,
     resave: false,
-    saveUninitialized: true,
-    cookie: { secure: false } // Set to true if using HTTPS
+    saveUninitialized: false,
+    cookie: {
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax'
+    }
 }));
 
 // Set View Engine
@@ -41,11 +46,9 @@ app.set('views', path.join(__dirname, 'views'));
 
 // Serve Static Files
 app.use(express.static(path.join(__dirname, 'public')));
-// Serve Chart.js from node_modules
 app.use('/scripts', express.static(path.join(__dirname, '../node_modules/chart.js/dist')));
 
-
-// Middleware to make session available in all templates
+// Make session available in templates
 app.use((req, res, next) => {
     res.locals.currentUser = req.session.user;
     next();
@@ -64,52 +67,43 @@ app.use('/analytics', analyticsRoutes);
 app.use('/challenges', challengesRoutes);
 app.use('/', adminRoutes);
 
-// Cron Job for Reminders (logs to console)
-// Runs every day at 9:00 AM
+// Cron Job
 cron.schedule('0 9 * * *', () => {
-  console.log('---------------------');
-  console.log('DailyEdge Reminder: Don\'t forget to complete your habits today!');
-  console.log('---------------------');
+    console.log('---------------------');
+    console.log("DailyEdge Reminder: Don't forget to complete your habits today!");
+    console.log('---------------------');
 });
-
 
 // 404 Error Handler
 app.use((req, res, next) => {
     res.status(404).render('pages/404', { title: 'Page Not Found' });
 });
 
-// Global Error Handler (500)
+// Global Error Handler
 app.use((err, req, res, next) => {
     console.error(err.stack);
     res.status(500).render('pages/500', { title: 'Server Error' });
 });
 
-// ============================================
-// WEBSOCKET SETUP
-// ============================================
+// ================================
+// WebSocket Setup
+// ================================
 io.on('connection', (socket) => {
     console.log('User connected:', socket.id);
-    
-    // Join user-specific room
+
     socket.on('join_user_room', (userId) => {
         socket.join(`user_${userId}`);
         console.log(`User ${userId} joined room: user_${userId}`);
     });
-    
-    // Handle habit completion broadcast
+
     socket.on('habit_completed', (data) => {
-        console.log('Habit completed:', data);
-        // Broadcast to all user's connected sessions
         io.to(`user_${data.userId}`).emit('habit_update', data);
     });
-    
-    // Handle challenge completion broadcast
+
     socket.on('challenge_completed', (data) => {
-        console.log('Challenge completed:', data);
-        // Broadcast to all user's connected sessions
         io.to(`user_${data.userId}`).emit('challenge_update', data);
     });
-    
+
     socket.on('disconnect', () => {
         console.log('User disconnected:', socket.id);
     });
@@ -119,5 +113,5 @@ io.on('connection', (socket) => {
 app.set('io', io);
 
 server.listen(PORT, () => {
-    console.log(`Server is running on http://localhost:${PORT}`);
+    console.log(`Server is running on port ${PORT}`);
 });
