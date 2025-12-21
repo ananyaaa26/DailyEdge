@@ -1,6 +1,6 @@
 const db = require('../models/db');
 const bcrypt = require('bcrypt');
-
+console.log("DEMO_MODE =", process.env.DEMO_MODE);
 const DEMO_MODE = process.env.DEMO_MODE === "true";
 
 // ======================
