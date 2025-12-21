@@ -1,10 +1,18 @@
 const db = require('../models/db');
 const bcrypt = require('bcrypt');
 
+const DEMO_MODE = process.env.DEMO_MODE === "true";
+
+// ======================
+// GET SIGNUP
+// ======================
 exports.getSignup = (req, res) => {
     res.render('pages/signup', { title: 'Sign Up', errors: [], formData: {} });
 };
 
+// ======================
+// POST SIGNUP
+// ======================
 exports.postSignup = async (req, res, next) => {
     const { username, email, password } = req.body;
     const errors = [];
@@ -19,6 +27,7 @@ exports.postSignup = async (req, res, next) => {
     if (!password || password.length < 6) {
         errors.push('Password must be at least 6 characters long');
     }
+
     if (errors.length > 0) {
         return res.render('pages/signup', { 
             title: 'Sign Up', 
@@ -27,12 +36,31 @@ exports.postSignup = async (req, res, next) => {
         });
     }
 
+    // ======================
+    // DEMO MODE SIGNUP
+    // ======================
+    if (DEMO_MODE) {
+        req.session.user = {
+            id: 1,
+            username,
+            email,
+            xp: 0
+        };
+        return res.redirect('/dashboard?welcome=true');
+    }
+
     try {
-        // Check if user already exists or not
-        const existingUser = await db.query('SELECT * FROM users WHERE email = $1 OR username = $2', [email, username]);
+        // Check if user already exists
+        const existingUser = await db.query(
+            'SELECT * FROM users WHERE email = $1 OR username = $2',
+            [email, username]
+        );
+
         if (existingUser.rows.length > 0) {
-            const existingField = existingUser.rows[0].email === email ? 'email' : 'username';
+            const existingField =
+                existingUser.rows[0].email === email ? 'email' : 'username';
             errors.push(`A user with this ${existingField} already exists`);
+
             return res.render('pages/signup', { 
                 title: 'Sign Up', 
                 errors, 
@@ -41,8 +69,7 @@ exports.postSignup = async (req, res, next) => {
         }
 
         // Hash password
-        const saltRounds = 12;
-        const hashedPassword = await bcrypt.hash(password, saltRounds);
+        const hashedPassword = await bcrypt.hash(password, 12);
 
         // Create user
         const result = await db.query(
@@ -50,19 +77,19 @@ exports.postSignup = async (req, res, next) => {
             [username, email, hashedPassword]
         );
 
-        // Auto-login after successful registration
-        const newUser = { 
+        // Auto-login
+        req.session.user = { 
             id: result.rows[0].id, 
             username: result.rows[0].username, 
             email: result.rows[0].email,
             xp: 0 
         };
-        req.session.user = newUser;
-        
+
         res.redirect('/dashboard?welcome=true');
     } catch (err) {
         console.error('Signup error:', err);
         errors.push('An error occurred during registration. Please try again.');
+
         res.render('pages/signup', { 
             title: 'Sign Up', 
             errors, 
@@ -71,21 +98,22 @@ exports.postSignup = async (req, res, next) => {
     }
 };
 
+// ======================
+// GET LOGIN
+// ======================
 exports.getLogin = (req, res) => {
     res.render('pages/login', { title: 'Login', errors: [], formData: {} });
 };
 
+// ======================
+// POST LOGIN
+// ======================
 exports.postLogin = async (req, res, next) => {
     const { email, password } = req.body;
     const errors = [];
 
-    // Validation
-    if (!email) {
-        errors.push('Email is required');
-    }
-    if (!password) {
-        errors.push('Password is required');
-    }
+    if (!email) errors.push('Email is required');
+    if (!password) errors.push('Password is required');
 
     if (errors.length > 0) {
         return res.render('pages/login', { 
@@ -95,9 +123,25 @@ exports.postLogin = async (req, res, next) => {
         });
     }
 
+    // ======================
+    // DEMO MODE LOGIN
+    // ======================
+    if (DEMO_MODE) {
+        req.session.user = {
+            id: 1,
+            username: "Demo User",
+            email,
+            xp: 100
+        };
+        return res.redirect('/dashboard');
+    }
+
     try {
-        const result = await db.query('SELECT * FROM users WHERE email = $1', [email]);
-        
+        const result = await db.query(
+            'SELECT * FROM users WHERE email = $1',
+            [email]
+        );
+
         if (result.rows.length === 0) {
             errors.push('Invalid email or password');
             return res.render('pages/login', { 
@@ -108,8 +152,8 @@ exports.postLogin = async (req, res, next) => {
         }
 
         const user = result.rows[0];
-        
-        // Check if user is suspended
+
+        // Check suspension
         if (user.is_suspended) {
             errors.push('Your account has been suspended. Please contact the administrator.');
             return res.render('pages/login', { 
@@ -118,42 +162,45 @@ exports.postLogin = async (req, res, next) => {
                 formData: { email } 
             });
         }
-        
-        // Handle both hashed and plain text passwords for backward compatibility
+
         let passwordValid = false;
-        
+
+        // Hashed password
         if (user.password.startsWith('$2b$')) {
-            // Hashed password
             passwordValid = await bcrypt.compare(password, user.password);
         } else {
-            // Plain text password - upgrade to hash
+            // Plain text password (legacy)
             if (user.password === password) {
                 passwordValid = true;
-                // Upgrade to hashed password
                 const hashedPassword = await bcrypt.hash(password, 12);
-                await db.query('UPDATE users SET password = $1 WHERE id = $2', [hashedPassword, user.id]);
+                await db.query(
+                    'UPDATE users SET password = $1 WHERE id = $2',
+                    [hashedPassword, user.id]
+                );
             }
         }
 
-        if (passwordValid) {
-            req.session.user = { 
-                id: user.id, 
-                username: user.username, 
-                email: user.email,
-                xp: user.xp || 0
-            };
-            res.redirect('/dashboard');
-        } else {
+        if (!passwordValid) {
             errors.push('Invalid email or password');
-            res.render('pages/login', { 
+            return res.render('pages/login', { 
                 title: 'Login', 
                 errors, 
                 formData: { email } 
             });
         }
+
+        req.session.user = { 
+            id: user.id, 
+            username: user.username, 
+            email: user.email,
+            xp: user.xp || 0
+        };
+
+        res.redirect('/dashboard');
     } catch (err) {
         console.error('Login error:', err);
         errors.push('An error occurred during login. Please try again.');
+
         res.render('pages/login', { 
             title: 'Login', 
             errors, 
@@ -162,6 +209,9 @@ exports.postLogin = async (req, res, next) => {
     }
 };
 
+// ======================
+// LOGOUT
+// ======================
 exports.logout = (req, res) => {
     req.session.destroy(err => {
         if (err) {
