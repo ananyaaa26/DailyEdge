@@ -1,14 +1,3 @@
-if (process.env.DEMO_MODE === "true") {
-    console.log("Database disabled in DEMO MODE");
-
-    module.exports = {
-        query: async () => {
-            return { rows: [] };
-        }
-    };
-    return;
-}
-
 const { Pool } = require('pg');
 
 const pool = new Pool({

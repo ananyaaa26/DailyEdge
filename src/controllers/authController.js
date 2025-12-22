@@ -1,7 +1,5 @@
 const db = require('../models/db');
 const bcrypt = require('bcrypt');
-console.log("DEMO_MODE =", process.env.DEMO_MODE);
-const DEMO_MODE = process.env.DEMO_MODE === "true";
 
 // ======================
 // GET SIGNUP
@@ -34,19 +32,6 @@ exports.postSignup = async (req, res, next) => {
             errors, 
             formData: { username, email } 
         });
-    }
-
-    // ======================
-    // DEMO MODE SIGNUP
-    // ======================
-    if (DEMO_MODE) {
-        req.session.user = {
-            id: 1,
-            username,
-            email,
-            xp: 0
-        };
-        return res.redirect('/dashboard?welcome=true');
     }
 
     try {
@@ -121,19 +106,6 @@ exports.postLogin = async (req, res, next) => {
             errors, 
             formData: { email } 
         });
-    }
-
-    // ======================
-    // DEMO MODE LOGIN
-    // ======================
-    if (DEMO_MODE) {
-        req.session.user = {
-            id: 1,
-            username: "Demo User",
-            email,
-            xp: 100
-        };
-        return res.redirect('/dashboard');
     }
 
     try {
