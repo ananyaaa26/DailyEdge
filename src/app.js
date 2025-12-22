@@ -31,13 +31,16 @@ app.use(express.urlencoded({ extended: true }));
 // Session Configuration (FIXED)
 // ================================
 app.use(session({
-    secret: process.env.SESSION_SECRET,
+    secret: process.env.SESSION_SECRET || 'fallback-secret-key',
     resave: false,
     saveUninitialized: false,
     cookie: {
         secure: process.env.NODE_ENV === "production",
-        sameSite: "lax"
-    }
+        httpOnly: true,
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+        maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    },
+    proxy: process.env.NODE_ENV === "production" // Trust proxy in production
 }));
 
 
