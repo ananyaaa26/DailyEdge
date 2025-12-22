@@ -44,8 +44,8 @@ const sessionConfig = {
 
 // Use Redis for session store if available
 if (redisClient) {
-    const RedisStore = require('connect-redis').default;
-    sessionConfig.store = new RedisStore({ client: redisClient });
+    const RedisStore = require('connect-redis');
+    sessionConfig.store = RedisStore({ client: redisClient });
 }
 
 app.use(session(sessionConfig));
