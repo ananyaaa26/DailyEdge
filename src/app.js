@@ -1,7 +1,6 @@
 require('dotenv').config();
 const express = require('express');
 const session = require('express-session');
-const RedisStore = require('connect-redis')(session);
 const path = require('path');
 const cron = require('node-cron');
 const http = require('http');
@@ -29,20 +28,27 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // ================================
-// Session Configuration (FIXED)
+// Session Configuration
 // ================================
-app.use(session({
-    store: redisClient ? new RedisStore({ client: redisClient }) : undefined,
+const sessionConfig = {
     secret: process.env.SESSION_SECRET || 'fallback-secret-key',
     resave: false,
     saveUninitialized: false,
     cookie: {
-        secure: false, // Disabled for now
+        secure: false,
         httpOnly: true,
         sameSite: "lax",
         maxAge: 24 * 60 * 60 * 1000 // 24 hours
     }
-}));
+};
+
+// Use Redis for session store if available
+if (redisClient) {
+    const RedisStore = require('connect-redis').default;
+    sessionConfig.store = new RedisStore({ client: redisClient });
+}
+
+app.use(session(sessionConfig));
 
 
 // Set View Engine
