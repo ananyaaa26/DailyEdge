@@ -30,7 +30,7 @@ app.use(express.urlencoded({ extended: true }));
 // ================================
 // Session Configuration
 // ================================
-const sessionConfig = {
+app.use(session({
     secret: process.env.SESSION_SECRET || 'fallback-secret-key',
     resave: false,
     saveUninitialized: false,
@@ -40,15 +40,7 @@ const sessionConfig = {
         sameSite: "lax",
         maxAge: 24 * 60 * 60 * 1000 // 24 hours
     }
-};
-
-// Use Redis for session store if available
-if (redisClient) {
-    const RedisStore = require('connect-redis');
-    sessionConfig.store = RedisStore({ client: redisClient });
-}
-
-app.use(session(sessionConfig));
+}));
 
 
 // Set View Engine
