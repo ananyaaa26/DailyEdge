@@ -223,12 +223,7 @@ async function runTests() {
             passedTests++; // Don't fail test for screenshot
         }
         
-        // ============================================
-        // TEST 9: Valid Login (OPTIONAL)
-        // ============================================
-        console.log('\n✓ Test 9: Valid login with test user');
-        console.log('  SKIPPED: Enable if you need to test actual login flow');
-        // Skipping because session-based tests need special handling
+        
         
         /*
         try {
