@@ -473,6 +473,9 @@ socket.on('habit_update', function(data) {
     
     // Always update XP display after habit completion
     updateXPDisplay(data.xpEarned || 0, data.isCompleted);
+    
+    // Update Today's Progress counter in real-time
+    updateTodaysProgress(data.isCompleted);
 });
 
 // Listen for real-time challenge updates
@@ -895,6 +898,22 @@ function updateChallengeCardRealtime(data) {
     updateProgressDisplay();
     
     console.log('Challenge card updated in real-time');
+}
+
+function updateTodaysProgress(isCompleted) {
+    const statValueElement = document.querySelector('.sidebar-stats .stat-value');
+    if (!statValueElement) return;
+    
+    // Parse current values (e.g., "1/1" -> [1, 1])
+    const [completed, total] = statValueElement.textContent.split('/').map(Number);
+    
+    // Update completed count based on completion status
+    let newCompleted = isCompleted ? completed + 1 : Math.max(0, completed - 1);
+    
+    // Update display
+    statValueElement.textContent = `${newCompleted}/${total}`;
+    
+    console.log(`Today's Progress updated: ${newCompleted}/${total}`);
 }
 
 function refreshDashboard() {
