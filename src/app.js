@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const session = require('express-session');
+const RedisStore = require('connect-redis').default;
 const path = require('path');
 const cron = require('node-cron');
 const http = require('http');
@@ -31,6 +32,7 @@ app.use(express.urlencoded({ extended: true }));
 // Session Configuration (FIXED)
 // ================================
 app.use(session({
+    store: redisClient ? new RedisStore({ client: redisClient }) : undefined,
     secret: process.env.SESSION_SECRET || 'fallback-secret-key',
     resave: false,
     saveUninitialized: false,
