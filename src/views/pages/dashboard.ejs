@@ -485,15 +485,18 @@ socket.on('challenge_update', function(data) {
 // STORAGE FEATURES INITIALIZATION
 // ============================================
 document.addEventListener('DOMContentLoaded', function() {
-    // 1. Show welcome message for new users (account created within last 5 minutes)
-    const userCreatedAt = new Date('<%= user.created_at %>');
-    const now = new Date();
-    const minutesSinceCreation = (now - userCreatedAt) / (1000 * 60);
+    // 1. Show welcome message for new users (only once)
+    const hasSeenWelcome = localStorage.getItem('hasSeenWelcome_<%= user.id %>');
+    const urlParams = new URLSearchParams(window.location.search);
+    const isWelcome = urlParams.get('welcome');
     
-    // Show welcome message only if account is less than 5 minutes old
-    if (minutesSinceCreation < 5) {
+    // Show welcome message only if user hasn't seen it and coming from signup
+    if (isWelcome === 'true' && !hasSeenWelcome) {
         showWelcomeMessage();
+        localStorage.setItem('hasSeenWelcome_<%= user.id %>', 'true');
         console.log('Welcome message shown (new user)');
+        // Remove welcome parameter from URL without refresh
+        window.history.replaceState({}, document.title, '/dashboard');
     }
     
     // Restore saved view preference (grid or list)
