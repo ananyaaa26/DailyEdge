@@ -6,13 +6,13 @@
 const puppeteer = require('puppeteer');
 
 // Test configuration
-const BASE_URL = process.env.TEST_URL || 'http://localhost:3000';
-const TIMEOUT = 10000; // 10 seconds
+const BASE_URL = process.env.TEST_URL || 'https://daily-edge.onrender.com';
+const TIMEOUT = 30000; // 30 seconds for cloud deployment
 
 // Test user credentials (use a test account from your database)
 const TEST_USER = {
-    email: 'test@example.com',
-    password: 'testpassword123'
+    email: 'abha@gmail.com',
+    password: 'abha'
 };
 
 async function runTests() {
@@ -224,13 +224,12 @@ async function runTests() {
         }
         
         // ============================================
-        // OPTIONAL TEST: Valid Login (Requires test user)
+        // TEST 9: Valid Login (OPTIONAL)
         // ============================================
-        console.log('\n✓ Test 9: Valid login (OPTIONAL - requires test user in database)');
-        console.log('  SKIPPED: Create test user first, then enable this test');
-        console.log(`     Test credentials: ${TEST_USER.email} / ${TEST_USER.password}`);
+        console.log('\n✓ Test 9: Valid login with test user');
+        console.log('  SKIPPED: Enable if you need to test actual login flow');
+        // Skipping because session-based tests need special handling
         
-        // Uncomment below when you have a test user:
         /*
         try {
             await page.goto(`${BASE_URL}/login`, { 
@@ -238,18 +237,34 @@ async function runTests() {
                 timeout: TIMEOUT 
             });
             
+            // Clear fields first
+            await page.evaluate(() => {
+                document.querySelector('input[name="email"]').value = '';
+                document.querySelector('input[name="password"]').value = '';
+            });
+            
             await page.type('input[name="email"]', TEST_USER.email);
             await page.type('input[name="password"]', TEST_USER.password);
             await page.click('button[type="submit"]');
             
-            await page.waitForNavigation({ timeout: TIMEOUT });
+            // Wait for either redirect or error message
+            try {
+                await Promise.race([
+                    page.waitForNavigation({ timeout: TIMEOUT }),
+                    page.waitForSelector('.error, .alert', { timeout: 5000 })
+                ]);
+            } catch (err) {
+                // Ignore timeout, check URL manually
+            }
+            
+            await new Promise(resolve => setTimeout(resolve, 2000));
             
             const currentUrl = page.url();
             if (currentUrl.includes('/dashboard')) {
                 console.log('  PASSED: Valid login successful, redirected to dashboard');
                 passedTests++;
             } else {
-                console.log('  FAILED: Valid login did not redirect to dashboard');
+                console.log(`  FAILED: Valid login did not redirect to dashboard. Current URL: ${currentUrl}`);
                 failedTests++;
             }
         } catch (error) {
