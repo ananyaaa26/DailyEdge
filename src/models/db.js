@@ -1,11 +1,9 @@
 const { Pool } = require('pg');
 
+// Use DATABASE_URL from environment or fallback to local database
 const pool = new Pool({
-    host: 'localhost',
-    port: 8000,
-    database: 'dailyedge',
-    user: 'postgres',
-    password: 'Ananya@26',
+    connectionString: process.env.DATABASE_URL || 'postgresql://postgres:Ananya@26@localhost:8000/dailyedge',
+    ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
 });
 
 module.exports = {
