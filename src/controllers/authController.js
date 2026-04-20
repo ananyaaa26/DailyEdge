@@ -15,6 +15,8 @@ exports.postSignup = async (req, res, next) => {
     const { username, email, password } = req.body;
     const errors = [];
 
+    console.log('Signup attempt:', { username, email, passwordLength: password?.length });
+
     // Validation
     if (!username || username.length < 3) {
         errors.push('Username must be at least 3 characters long');
@@ -27,6 +29,7 @@ exports.postSignup = async (req, res, next) => {
     }
 
     if (errors.length > 0) {
+        console.log('Validation errors:', errors);
         return res.render('pages/signup', { 
             title: 'Sign Up', 
             errors, 
@@ -62,6 +65,8 @@ exports.postSignup = async (req, res, next) => {
             [username, email, hashedPassword]
         );
 
+        console.log('User created successfully:', result.rows[0].id);
+
         // Auto-login
         req.session.user = { 
             id: result.rows[0].id, 
@@ -72,8 +77,17 @@ exports.postSignup = async (req, res, next) => {
 
         res.redirect('/dashboard?welcome=true');
     } catch (err) {
-        console.error('Signup error:', err);
-        errors.push('An error occurred during registration. Please try again.');
+        console.error('Signup error:', err.message);
+        console.error('Error details:', err.code, err.detail);
+        
+        // Provide specific error messages based on error type
+        if (err.code === '23505') { // Unique constraint violation
+            errors.push('This email or username is already registered');
+        } else if (err.code === 'ECONNREFUSED') {
+            errors.push('Database connection failed. Please try again later.');
+        } else {
+            errors.push('An error occurred during registration. Please try again.');
+        }
 
         res.render('pages/signup', { 
             title: 'Sign Up', 
