@@ -90,7 +90,7 @@ exports.getUsers = async (req, res, next) => {
             query += ' AND u.is_suspended = true';
         }
 
-        query += ' GROUP BY u.id ORDER BY u.created_at DESC';
+        query += ' GROUP BY u.id ORDER BY u.xp DESC NULLS LAST, u.id DESC';
 
         const result = await db.query(query, params);
 

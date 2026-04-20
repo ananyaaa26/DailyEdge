@@ -5,6 +5,16 @@
         <div class="card shadow-sm">
             <div class="card-body p-5">
                 <h2 class="card-title text-center mb-4">Welcome Back!</h2>
+                
+                <!-- Error Messages -->
+                <% if (errors && errors.length > 0) { %>
+                    <div class="alert alert-danger" role="alert">
+                        <% errors.forEach(error => { %>
+                            <div><i class="fas fa-exclamation-circle me-2"></i><%= error %></div>
+                        <% }) %>
+                    </div>
+                <% } %>
+                
                 <form action="/login" method="POST" id="loginForm">
                     <div class="mb-3">
                         <label for="email" class="form-label">Email address</label>

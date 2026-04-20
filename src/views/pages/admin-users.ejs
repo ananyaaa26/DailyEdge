@@ -77,35 +77,55 @@
             </div>
         </div>
 
-        <!-- Users Table -->
+        <!-- Users Leaderboard Table -->
         <div class="card">
+            <div class="card-header bg-dark">
+                <h5 class="mb-0">🏆 Users Leaderboard (Sorted by XP)</h5>
+            </div>
             <div class="card-body">
                 <div class="table-responsive">
                     <table class="table table-hover">
                         <thead>
                             <tr>
-                                <th>ID</th>
+                                <th style="width: 50px;">Rank</th>
                                 <th>Username</th>
                                 <th>Email</th>
-                                <th>XP</th>
-                                <th>Habits</th>
-                                <th>Challenges</th>
-                                <th>Badges</th>
+                                <th style="text-align: center;">⭐ XP</th>
+                                <th style="text-align: center;">Habits</th>
+                                <th style="text-align: center;">Challenges</th>
+                                <th style="text-align: center;">Badges</th>
                                 <th>Status</th>
                                 <th>Joined</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <% users.forEach(user => { %>
-                                <tr class="user-row <%= user.is_suspended ? 'suspended-row' : '' %>">
-                                    <td><%= user.id %></td>
+                            <% users.forEach((user, index) => { 
+                                let medalIcon = '';
+                                if (index === 0) medalIcon = '🥇';
+                                else if (index === 1) medalIcon = '🥈';
+                                else if (index === 2) medalIcon = '🥉';
+                            %>
+                                <tr class="user-row <%= user.is_suspended ? 'suspended-row' : '' %> <%= index < 3 ? 'table-warning' : '' %>">
+                                    <td>
+                                        <strong style="font-size: 1.2em;">
+                                            <% if (index < 3) { %>
+                                                <%= medalIcon %> #<%= index + 1 %>
+                                            <% } else { %>
+                                                #<%= index + 1 %>
+                                            <% } %>
+                                        </strong>
+                                    </td>
                                     <td><strong><%= user.username %></strong></td>
                                     <td><%= user.email %></td>
-                                    <td><span class="badge bg-success"><%= user.xp %> XP</span></td>
-                                    <td><%= user.habit_count %></td>
-                                    <td><%= user.challenge_count %></td>
-                                    <td><%= user.badge_count %></td>
+                                    <td style="text-align: center;">
+                                        <span class="badge bg-success" style="font-size: 1.1em; padding: 0.5rem 0.75rem;">
+                                            <%= user.xp %> XP
+                                        </span>
+                                    </td>
+                                    <td style="text-align: center;"><%= user.habit_count %></td>
+                                    <td style="text-align: center;"><%= user.challenge_count %></td>
+                                    <td style="text-align: center;"><%= user.badge_count %></td>
                                     <td>
                                         <% if (user.is_suspended) { %>
                                             <span class="badge bg-danger">Suspended</span>
