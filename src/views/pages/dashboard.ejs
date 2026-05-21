@@ -174,6 +174,7 @@
             </div>
         </div>
         <% } %>
+        
 
         <!-- Habits Section Header -->
         <div class="section-header">
@@ -348,6 +349,7 @@
             </div>
         </div>
         <% } %>
+        
 
         <!-- Failed Habits Section -->
         <% if (failedHabits && failedHabits.length > 0) { %>
@@ -476,6 +478,31 @@ socket.on('habit_update', function(data) {
     
     // Update Today's Progress counter in real-time
     updateTodaysProgress(data.isCompleted);
+});
+
+// Listen for habit completion updates
+socket.on('habit_completed_update', function(data) {
+    console.log('Habit completion update received:', data);
+    
+    // Update the habit card with new streak
+    const habitCard = document.querySelector(`[data-habit-id="${data.habitId}"]`);
+    if (habitCard) {
+        const streakElement = habitCard.querySelector('.streak-text');
+        if (streakElement) {
+            streakElement.textContent = `${data.streak} day streak`;
+            console.log(`Updated streak for habit ${data.habitId} to ${data.streak} days`);
+        }
+    }
+    
+    // Update progress display to show latest stats
+    updateProgressDisplay();
+});
+
+// Listen for analytics refresh trigger
+socket.on('analytics_refresh_needed', function(data) {
+    console.log('Analytics refresh triggered from server:', data);
+    // This will trigger real-time analytics update without page reload
+    updateAnalyticsDisplay();
 });
 
 // Listen for real-time challenge updates
@@ -898,6 +925,35 @@ function updateChallengeCardRealtime(data) {
     updateProgressDisplay();
     
     console.log('Challenge card updated in real-time');
+}
+
+// Update analytics display without page reload
+async function updateAnalyticsDisplay() {
+    try {
+        console.log('Fetching fresh analytics data...');
+        const response = await fetch('/analytics?skipCache=true');
+        if (!response.ok) throw new Error('Failed to fetch analytics');
+        
+        // Parse the HTML response
+        const html = await response.text();
+        const parser = new DOMParser();
+        const newDoc = parser.parseFromString(html, 'text/html');
+        
+        // Update specific analytics cards on dashboard if they exist
+        const analyticsCards = document.querySelectorAll('[data-analytics-card]');
+        analyticsCards.forEach(card => {
+            const cardId = card.getAttribute('data-analytics-card');
+            const newCard = newDoc.querySelector(`[data-analytics-card="${cardId}"]`);
+            if (newCard) {
+                card.innerHTML = newCard.innerHTML;
+                console.log(`Updated analytics card: ${cardId}`);
+            }
+        });
+        
+        console.log('Analytics display updated successfully');
+    } catch (error) {
+        console.error('Error updating analytics display:', error);
+    }
 }
 
 function updateTodaysProgress(isCompleted) {

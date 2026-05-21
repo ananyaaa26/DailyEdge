@@ -287,21 +287,47 @@ socket.on('challenge_update', function(data) {
     refreshAnalyticsData();
 });
 
+// Listen for analytics refresh trigger
+socket.on('analytics_refresh_needed', function(data) {
+    console.log('Analytics refresh triggered from server:', data);
+    refreshAnalyticsData();
+    
+    // Also show a subtle notification
+    const notification = document.createElement('div');
+    notification.style.cssText = 'position:fixed;bottom:20px;right:20px;background:#10b981;color:white;padding:12px 20px;border-radius:8px;font-size:14px;z-index:9999;animation:slideInRight 0.3s ease;';
+    notification.textContent = '📊 Analytics updated!';
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.animation = 'slideOutRight 0.3s ease';
+        setTimeout(() => notification.remove(), 300);
+    }, 3000);
+});
+
 // Function to refresh analytics data without page reload
 async function refreshAnalyticsData() {
     try {
-        const response = await fetch('/analytics/data');
-        const data = await response.json();
+        // Fetch chart data and stats
+        const chartResponse = await fetch('/analytics/data');
+        const chartData = await chartResponse.json();
+        
+        const statsResponse = await fetch('/analytics/stats');
+        const statsData = await statsResponse.json();
+        
+        // Update stats cards
+        updateAnalyticsStats(statsData);
         
         // Update completion chart
         if (completionChart) {
-            completionChart.data.labels = data.labels;
-            completionChart.data.datasets[0].data = data.data;
+            completionChart.data.labels = chartData.labels;
+            completionChart.data.datasets[0].data = chartData.data;
+            // Also update Y-axis max based on new total habits count
+            completionChart.options.scales.y.max = statsData.totalHabits || totalHabitsCount;
             completionChart.update('none'); // Update without animation for instant feedback
         }
         
         // Update category chart
-        if (categoryChart && data.categoryLabels && data.categoryCounts) {
+        if (categoryChart && chartData.categoryLabels && chartData.categoryCounts) {
             const colorPalette = [
                 '#667eea',
                 '#f093fb',
@@ -315,14 +341,14 @@ async function refreshAnalyticsData() {
                 '#b2dfdb'
             ];
             
-            categoryChart.data.labels = data.categoryLabels;
-            categoryChart.data.datasets[0].data = data.categoryCounts;
+            categoryChart.data.labels = chartData.categoryLabels;
+            categoryChart.data.datasets[0].data = chartData.categoryCounts;
             // Update colors to match number of categories
-            categoryChart.data.datasets[0].backgroundColor = data.categoryLabels.map((_, index) => 
+            categoryChart.data.datasets[0].backgroundColor = chartData.categoryLabels.map((_, index) => 
                 colorPalette[index % colorPalette.length]
             );
             categoryChart.update('none');
-        } else if (!categoryChart && data.categoryLabels && data.categoryCounts && data.categoryCounts.length > 0) {
+        } else if (!categoryChart && chartData.categoryLabels && chartData.categoryCounts && chartData.categoryCounts.length > 0) {
             // If chart doesn't exist but we now have data, reload the page to create it
             console.log('Category data now available, reloading page...');
             window.location.reload();
@@ -332,6 +358,75 @@ async function refreshAnalyticsData() {
         console.log('Analytics data refreshed in real-time');
     } catch (error) {
         console.error('Error refreshing analytics:', error);
+    }
+}
+
+// Function to update analytics stat cards without full page reload
+async function updateAnalyticsStats(data) {
+    try {
+        // If data wasn't passed, fetch it
+        if (!data) {
+            const response = await fetch('/analytics/stats');
+            if (!response.ok) throw new Error('Failed to fetch stats');
+            data = await response.json();
+        }
+        
+        // Update Total Habits card
+        const habitCards = document.querySelectorAll('.card');
+        habitCards.forEach(card => {
+            const titleElement = card.querySelector('.card-title');
+            if (titleElement && titleElement.textContent.includes('Total Habits')) {
+                const valueElement = card.querySelector('.display-6');
+                if (valueElement && data.totalHabits !== undefined) {
+                    valueElement.textContent = data.totalHabits;
+                }
+            }
+        });
+        
+        // Update Total Completions card
+        habitCards.forEach(card => {
+            const titleElement = card.querySelector('.card-title');
+            if (titleElement && titleElement.textContent.includes('Total Completions')) {
+                const valueElement = card.querySelector('.display-6');
+                if (valueElement && data.totalCompletions !== undefined) {
+                    valueElement.textContent = data.totalCompletions;
+                }
+            }
+        });
+        
+        // Update Longest Streak card
+        habitCards.forEach(card => {
+            const titleElement = card.querySelector('.card-title');
+            if (titleElement && titleElement.textContent.includes('Longest Streak')) {
+                const valueElement = card.querySelector('.display-6');
+                if (valueElement && data.longestStreak !== undefined) {
+                    valueElement.textContent = data.longestStreak;
+                }
+            }
+        });
+        
+        // Update weekly stats badge
+        const weeklyActiveBadges = document.querySelectorAll('.badge');
+        weeklyActiveBadges.forEach(badge => {
+            if (badge.textContent.includes('/7')) {
+                badge.textContent = `${data.weeklyActiveDays || 0}/7`;
+            }
+        });
+        
+        // Update weekly completions
+        const textElements = document.querySelectorAll('.fw-bold');
+        textElements.forEach(elem => {
+            const parent = elem.parentElement;
+            if (parent && parent.textContent.includes('Total Completions')) {
+                if (data.weeklyCompletions !== undefined) {
+                    elem.textContent = data.weeklyCompletions;
+                }
+            }
+        });
+        
+        console.log('Analytics stats updated successfully:', data);
+    } catch (error) {
+        console.error('Error updating analytics stats:', error);
     }
 }
 
@@ -350,6 +445,9 @@ try {
     
     const chartData = JSON.parse(chartDataElement.textContent);
     const categoryStats = JSON.parse(categoryStatsElement.textContent);
+    
+    // Get total habits count for Y-axis max
+    const totalHabitsCount = <%= totalHabits %>;
     
     // Completion Trend Chart
     const completionCanvas = document.getElementById('completionChart');
@@ -398,6 +496,7 @@ try {
                 scales: {
                     y: {
                         beginAtZero: true,
+                        max: totalHabitsCount,
                         ticks: {
                             stepSize: 1,
                             precision: 0

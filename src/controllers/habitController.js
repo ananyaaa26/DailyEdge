@@ -157,9 +157,33 @@ exports.toggleHabitStatus = async (req, res, next) => {
             // Invalidate user caches after XP update
             await invalidateUserCache(userId);
             
+            // Invalidate analytics cache
+            const analyticsCacheKey = `analytics:${userId}`;
+            await require('../config/redis').del(analyticsCacheKey);
+            
             // Check for streak milestones and award badges + bonus XP
             try {
                 const badgeReward = await awardBadges(userId, streak);
+                
+                // Emit real-time updates via Socket.io
+                const io = req.app.get('io');
+                if (io) {
+                    // Emit to user's dashboard for real-time updates
+                    io.to(`user_${userId}`).emit('habit_completed_update', {
+                        habitId: id,
+                        streak: streak,
+                        xpEarned: earnedXP,
+                        multiplier: multiplier,
+                        badgeReward: badgeReward
+                    });
+                    
+                    // Emit to analytics page for real-time stats update
+                    io.to(`user_${userId}`).emit('analytics_refresh_needed', {
+                        userId: userId,
+                        action: 'habit_completed',
+                        timestamp: new Date()
+                    });
+                }
                 
                 res.json({ 
                     success: true, 

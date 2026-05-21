@@ -9,4 +9,7 @@ router.get('/', requireLogin, checkSuspended, analyticsController.getAnalytics);
 // API endpoint for chart data
 router.get('/data', requireLogin, checkSuspended, analyticsController.getChartData);
 
+// API endpoint for analytics stats (for real-time updates)
+router.get('/stats', requireLogin, checkSuspended, analyticsController.getAnalyticsStats);
+
 module.exports = router;
