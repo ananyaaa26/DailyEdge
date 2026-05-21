@@ -315,6 +315,9 @@ exports.createChallenge = async (req, res, next) => {
         const { name, description, duration_days, xp_reward } = req.body;
         const errors = [];
 
+        // Parse xp_reward as integer to ensure correct storage
+        const parsedXpReward = parseInt(xp_reward, 10);
+
         // Validation
         if (!name || name.trim().length < 3) {
             errors.push('Challenge name must be at least 3 characters');
@@ -325,7 +328,7 @@ exports.createChallenge = async (req, res, next) => {
         if (!duration_days || duration_days < 1) {
             errors.push('Duration must be at least 1 day');
         }
-        if (!xp_reward || xp_reward < 0) {
+        if (!parsedXpReward || parsedXpReward < 0) {
             errors.push('XP reward must be 0 or greater');
         }
 
@@ -341,7 +344,7 @@ exports.createChallenge = async (req, res, next) => {
         const result = await db.query(
             `INSERT INTO challenges (title, description, duration_days, xp_reward, is_admin_created, created_by) 
              VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-            [name, description, duration_days, xp_reward, true, 'admin']
+            [name, description, parseInt(duration_days, 10), parsedXpReward, true, 'admin']
         );
 
         // Log activity
@@ -391,6 +394,10 @@ exports.updateChallenge = async (req, res, next) => {
         const { name, description, duration_days, xp_reward } = req.body;
         const errors = [];
 
+        // Parse xp_reward and duration_days as integers to ensure correct storage
+        const parsedXpReward = parseInt(xp_reward, 10);
+        const parsedDurationDays = parseInt(duration_days, 10);
+
         // Validation
         if (!name || name.trim().length < 3) {
             errors.push('Challenge name must be at least 3 characters');
@@ -398,10 +405,10 @@ exports.updateChallenge = async (req, res, next) => {
         if (!description || description.trim().length < 10) {
             errors.push('Description must be at least 10 characters');
         }
-        if (!duration_days || duration_days < 1) {
+        if (!parsedDurationDays || parsedDurationDays < 1) {
             errors.push('Duration must be at least 1 day');
         }
-        if (!xp_reward || xp_reward < 0) {
+        if (!parsedXpReward || parsedXpReward < 0) {
             errors.push('XP reward must be 0 or greater');
         }
 
@@ -417,7 +424,7 @@ exports.updateChallenge = async (req, res, next) => {
 
         await db.query(
             'UPDATE challenges SET title = $1, description = $2, duration_days = $3, xp_reward = $4 WHERE id = $5',
-            [name, description, duration_days, xp_reward, challengeId]
+            [name, description, parsedDurationDays, parsedXpReward, challengeId]
         );
 
         // Log activity
