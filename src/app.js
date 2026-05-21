@@ -9,6 +9,9 @@ const { Server } = require('socket.io');
 // Redis connection
 const redisClient = require('./config/redis');
 
+// Mail configuration
+require('./config/mail');
+
 const mainRoutes = require('./routes/main');
 const authRoutes = require('./routes/auth');
 const habitRoutes = require('./routes/habits');
@@ -16,6 +19,7 @@ const dashboardRoutes = require('./routes/dashboard');
 const analyticsRoutes = require('./routes/analytics');
 const challengesRoutes = require('./routes/challenges');
 const adminRoutes = require('./routes/admin');
+const leaderboardRoutes = require('./routes/leaderboard');
 
 const app = express();
 const server = http.createServer(app);
@@ -68,6 +72,7 @@ app.use('/habits', habitRoutes);
 app.use('/dashboard', dashboardRoutes);
 app.use('/analytics', analyticsRoutes);
 app.use('/challenges', challengesRoutes);
+app.use('/leaderboard', leaderboardRoutes);
 app.use('/', adminRoutes);
 
 // Cron Job
@@ -91,6 +96,8 @@ app.use((err, req, res, next) => {
 // ================================
 // WebSocket Setup
 // ================================
+const leaderboardController = require('./controllers/leaderboardController');
+
 io.on('connection', (socket) => {
     console.log('User connected:', socket.id);
 
@@ -99,12 +106,43 @@ io.on('connection', (socket) => {
         console.log(`User ${userId} joined room: user_${userId}`);
     });
 
-    socket.on('habit_completed', (data) => {
-        io.to(`user_${data.userId}`).emit('habit_update', data);
+    // Join leaderboard room for real-time updates
+    socket.on('join_leaderboard', (userId) => {
+        socket.join('leaderboard');
+        console.log(`User ${userId} joined leaderboard room`);
     });
 
-    socket.on('challenge_completed', (data) => {
+    socket.on('habit_completed', async (data) => {
+        // Invalidate leaderboard cache when habit is completed
+        await leaderboardController.invalidateLeaderboardCache();
+        
+        // Broadcast habit update to user
+        io.to(`user_${data.userId}`).emit('habit_update', data);
+        
+        // Broadcast leaderboard update to all connected clients
+        try {
+            const leaderboardData = await fetch('http://localhost:' + (process.env.PORT || 3000) + '/leaderboard/streaks');
+            const leaderboard = await leaderboardData.json();
+            io.to('leaderboard').emit('leaderboard_update', leaderboard);
+        } catch (error) {
+            console.error('Error broadcasting leaderboard update:', error);
+        }
+    });
+
+    socket.on('challenge_completed', async (data) => {
+        // Invalidate leaderboard cache when challenge is completed
+        await leaderboardController.invalidateLeaderboardCache();
+        
         io.to(`user_${data.userId}`).emit('challenge_update', data);
+        
+        // Broadcast leaderboard update to all connected clients
+        try {
+            const leaderboardData = await fetch('http://localhost:' + (process.env.PORT || 3000) + '/leaderboard/streaks');
+            const leaderboard = await leaderboardData.json();
+            io.to('leaderboard').emit('leaderboard_update', leaderboard);
+        } catch (error) {
+            console.error('Error broadcasting leaderboard update:', error);
+        }
     });
 
     socket.on('disconnect', () => {

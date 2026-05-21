@@ -1,22 +1,76 @@
 <%- include('../partials/header') %>
 
-<div class="row justify-content-center animation-fadeInUp">
-    <div class="col-lg-8 col-xl-6">
-        <div class="card glass-effect">
-            <div class="card-body p-5">
-                <div class="text-center mb-5">
-                
-                    <h1 class="display-6 fw-bold mb-2">
-                        <%= habit ? 'Edit Your Habit' : 'Create a New Habit' %>
-                    </h1>
-                    <p class="text-secondary">
-                        <% if (habit) { %>
-                            Update your habit details to keep improving
-                        <% } else { %>
-                            Small consistent actions lead to big transformations
-                        <% } %>
-                    </p>
+<div class="modern-dashboard">
+    <!-- Sidebar -->
+    <div class="dashboard-sidebar">
+        <!-- User Profile -->
+        <div class="user-profile-card card-interactive">
+            <div class="user-avatar">
+                <div class="avatar-circle interactive-icon">
+                    <span class="avatar-text"><%= currentUser.username.charAt(0).toUpperCase() %></span>
                 </div>
+                <div class="online-indicator"></div>
+            </div>
+            <div class="user-info">
+                <h6 class="user-name"><%= currentUser.username %></h6>
+                <p class="user-xp">
+                    <span class="interactive-icon">🌟</span> 
+                    <%= userXP || 0 %> XP
+                    <span class="xp-badge">Level <%= Math.floor((userXP || 0) / 100) + 1 %></span>
+                </p>
+            </div>
+        </div>
+
+        <!-- Navigation -->
+        <nav class="sidebar-navigation">
+            <a href="/dashboard" class="nav-link">
+                <span class="nav-icon interactive-icon">🏠</span>
+                <span class="nav-label">Dashboard</span>
+            </a>
+            <a href="/challenges" class="nav-link">
+                <span class="nav-icon interactive-icon">🏆</span>
+                <span class="nav-label">Challenges</span>
+            </a>
+            <a href="/analytics" class="nav-link">
+                <span class="nav-icon interactive-icon">📊</span>
+                <span class="nav-label">Analytics</span>
+            </a>
+            <a href="/leaderboard" class="nav-link">
+                <span class="nav-icon interactive-icon">🔥</span>
+                <span class="nav-label">Leaderboards</span>
+            </a>
+            <a href="/habits/add" class="nav-link active">
+                <span class="nav-icon interactive-icon">➕</span>
+                <span class="nav-label">Add Habit</span>
+                <div class="nav-indicator"></div>
+            </a>
+        </nav>
+    </div>
+
+    <!-- Main Content -->
+    <div class="dashboard-main">
+        <div class="dashboard-header">
+            <div class="header-content">
+                <h1 class="dashboard-title">
+                    <% if (habit) { %>
+                        ✏️ Edit Your Habit
+                    <% } else { %>
+                        ➕ Create a New Habit
+                    <% } %>
+                </h1>
+                <p class="dashboard-subtitle">
+                    <% if (habit) { %>
+                        Update your habit details to keep improving
+                    <% } else { %>
+                        Small consistent actions lead to big transformations
+                    <% } %>
+                </p>
+            </div>
+        </div>
+
+        <div style="max-width: 600px;">
+            <div class="card glass-effect">
+                <div class="card-body p-5">
 
                 <form action="<%= habit ? '/habits/edit/' + habit.id : '/habits/add' %>" method="POST" class="needs-validation" novalidate>
                     <div class="mb-4">
@@ -242,5 +296,10 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 <% } %>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
 <%- include('../partials/footer') %>

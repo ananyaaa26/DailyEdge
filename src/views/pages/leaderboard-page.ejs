@@ -1,0 +1,108 @@
+<%- include('../partials/header') %>
+
+<div class="modern-dashboard">
+    <!-- Sidebar -->
+    <div class="dashboard-sidebar">
+        <!-- User Profile -->
+        <div class="user-profile-card card-interactive">
+            <div class="user-avatar">
+                <div class="avatar-circle interactive-icon">
+                    <span class="avatar-text"><%= currentUser.username.charAt(0).toUpperCase() %></span>
+                </div>
+                <div class="online-indicator"></div>
+            </div>
+            <div class="user-info">
+                <h6 class="user-name"><%= currentUser.username %></h6>
+                <p class="user-xp">
+                    <span class="interactive-icon">🌟</span> 
+                    <%= userXP || 0 %> XP
+                    <span class="xp-badge">Level <%= Math.floor((userXP || 0) / 100) + 1 %></span>
+                </p>
+            </div>
+        </div>
+
+        <!-- Navigation -->
+        <nav class="sidebar-navigation">
+            <a href="/dashboard" class="nav-link">
+                <span class="nav-icon interactive-icon">🏠</span>
+                <span class="nav-label">Dashboard</span>
+                <div class="nav-indicator"></div>
+            </a>
+            <a href="/challenges" class="nav-link">
+                <span class="nav-icon interactive-icon">🏆</span>
+                <span class="nav-label">Challenges</span>
+                <span class="nav-badge">New</span>
+            </a>
+            <a href="/analytics" class="nav-link">
+                <span class="nav-icon interactive-icon">📊</span>
+                <span class="nav-label">Analytics</span>
+            </a>
+            <a href="/leaderboard" class="nav-link active">
+                <span class="nav-icon interactive-icon">🔥</span>
+                <span class="nav-label">Leaderboards</span>
+                <div class="nav-indicator"></div>
+            </a>
+            <a href="/habits/add" class="nav-link">
+                <span class="nav-icon interactive-icon">➕</span>
+                <span class="nav-label">Add Habit</span>
+            </a>
+        </nav>
+
+        <!-- Quick Stats -->
+        <div class="sidebar-stats">
+            <h6 class="stats-title">Your Rank</h6>
+            <div class="quick-stat">
+                <div class="stat-info">
+                    <span class="stat-value">#<%= userRank || '-' %></span>
+                    <span class="stat-label">Current Rank</span>
+                </div>
+            </div>
+            <div class="quick-stat">
+                <div class="stat-info">
+                    <span class="stat-value">🔥 <%= userStreak || 0 %></span>
+                    <span class="stat-label">Your Streak</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="dashboard-main">
+        <!-- Header Section -->
+        <div class="dashboard-header">
+            <div class="header-content">
+                <h1 class="dashboard-title">🏆 Leaderboards</h1>
+                <p class="dashboard-subtitle">See how you rank against other players</p>
+            </div>
+        </div>
+
+        <!-- Leaderboard Container -->
+        <div id="leaderboard-container" class="leaderboard-page-container">
+            <!-- This will be populated by JavaScript -->
+        </div>
+    </div>
+</div>
+
+<!-- Leaderboard CSS and JavaScript -->
+<link rel="stylesheet" href="/css/leaderboard.css">
+
+<script>
+// Store userId in sessionStorage for leaderboard widget access
+sessionStorage.setItem('userId', '<%= currentUser.id %>');
+</script>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="/js/leaderboard-page.js"></script>
+
+<style>
+.leaderboard-page-container {
+    margin: 2rem 0;
+}
+
+.dashboard-header {
+    margin-bottom: 2rem;
+    padding-bottom: 1.5rem;
+}
+</style>
+
+<%- include('../partials/footer') %>
