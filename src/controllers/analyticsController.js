@@ -2,23 +2,34 @@ const db = require('../models/db');
 const { calculateStreak, calculateChallengeStreak } = require('../utils/gamification');
 const redisClient = require('../config/redis');
 
+// Helper function to emit analytics update via Socket.io
+function emitAnalyticsUpdate(req, userId, updateData) {
+    const io = req.app.get('io');
+    if (io) {
+        io.to(`user_${userId}`).emit('analytics_update', updateData);
+    }
+}
+
 exports.getAnalytics = async (req, res, next) => {
     if (!req.session.user) return res.redirect('/login');
     
     try {
         const userId = req.session.user.id;
         const cacheKey = `analytics:${userId}`;
+        const skipCache = req.query.skipCache === 'true'; // Allow bypassing cache via query param
         
-        // Try cache first
-        const cached = await redisClient.get(cacheKey);
-        if (cached) {
-            console.log(`Analytics cache HIT for user ${userId}`);
-            const analyticsData = JSON.parse(cached);
-            return res.render('pages/analytics', {
-                title: 'Analytics',
-                ...analyticsData,
-                currentUser: req.session.user
-            });
+        // Try cache first (unless skipped)
+        if (!skipCache) {
+            const cached = await redisClient.get(cacheKey);
+            if (cached) {
+                console.log(`Analytics cache HIT for user ${userId}`);
+                const analyticsData = JSON.parse(cached);
+                return res.render('pages/analytics', {
+                    title: 'Analytics',
+                    ...analyticsData,
+                    currentUser: req.session.user
+                });
+            }
         }
         
         console.log(`Analytics cache MISS for user ${userId}`);
@@ -34,7 +45,7 @@ exports.getAnalytics = async (req, res, next) => {
                    COUNT(DISTINCT hl.date) FILTER (WHERE hl.status = 'done') as active_days
             FROM habits h
             LEFT JOIN habit_logs hl ON h.id = hl.habit_id
-            WHERE h.user_id = $1
+            WHERE h.user_id = $1 AND h.status != 'completed' AND h.status != 'failed'
             GROUP BY h.id, h.name, h.category, h.created_at
             ORDER BY total_completions DESC
         `, [userId]);
@@ -98,8 +109,8 @@ exports.getAnalytics = async (req, res, next) => {
         // Combine habits and challenges
         const allItems = [...habits, ...challenges];
 
-        // Overall statistics
-        const totalHabits = habits.length;
+        // Overall statistics (count both habits and challenges)
+        const totalHabits = allItems.length;
         const totalChallenges = challenges.length;
         const totalCompletions = allItems.reduce((sum, item) => sum + parseInt(item.total_completions), 0);
         
@@ -319,5 +330,99 @@ exports.getChartData = async (req, res, next) => {
         res.json(chartData);
     } catch (err) {
         res.status(500).json({ error: 'Failed to fetch chart data' });
+    }
+};
+
+// API endpoint for analytics stats refresh (for real-time updates)
+exports.getAnalyticsStats = async (req, res, next) => {
+    if (!req.session.user) return res.status(401).json({ error: 'Unauthorized' });
+    
+    try {
+        const userId = req.session.user.id;
+        
+        // Get all habits with their completion stats
+        const habitsResult = await db.query(`
+            SELECT h.id, h.name, h.category, h.created_at,
+                   COUNT(hl.id) FILTER (WHERE hl.status = 'done') as total_completions,
+                   COUNT(DISTINCT hl.date) FILTER (WHERE hl.status = 'done') as active_days
+            FROM habits h
+            LEFT JOIN habit_logs hl ON h.id = hl.habit_id
+            WHERE h.user_id = $1 AND h.status != 'completed' AND h.status != 'failed'
+            GROUP BY h.id, h.name, h.category, h.created_at
+            ORDER BY total_completions DESC
+        `, [userId]);
+
+        const habits = habitsResult.rows;
+        
+        // Calculate streaks for each habit
+        let longestStreak = 0;
+        let longestStreakHabit = 'N/A';
+        
+        for (const habit of habits) {
+            const streak = await calculateStreak(habit.id);
+            habit.streak = streak;
+            if (streak > longestStreak) {
+                longestStreak = streak;
+                longestStreakHabit = habit.name;
+            }
+        }
+
+        // Get challenges
+        const challengesResult = await db.query(`
+            SELECT c.id, c.title as name, c.duration_days, uc.start_date, uc.id as user_challenge_id,
+                   COUNT(cl.id) FILTER (WHERE cl.status = 'done') as total_completions
+            FROM challenges c
+            JOIN user_challenges uc ON c.id = uc.challenge_id
+            LEFT JOIN challenge_logs cl ON cl.user_challenge_id = uc.id
+            WHERE uc.user_id = $1 AND uc.status = 'in_progress'
+            GROUP BY c.id, c.title, c.duration_days, uc.start_date, uc.id
+        `, [userId]);
+
+        const challenges = challengesResult.rows;
+        
+        // Calculate challenge streaks
+        for (const challenge of challenges) {
+            const streak = await calculateChallengeStreak(challenge.user_challenge_id);
+            challenge.streak = streak;
+            if (streak > longestStreak) {
+                longestStreak = streak;
+                longestStreakHabit = challenge.name;
+            }
+        }
+
+        const allItems = [...habits, ...challenges];
+        const totalHabits = allItems.length; // Include both habits and challenges
+        const totalCompletions = allItems.reduce((sum, item) => sum + parseInt(item.total_completions || 0), 0);
+        
+        // Weekly statistics
+        const weeklyResult = await db.query(`
+            SELECT 
+                COUNT(DISTINCT hl.date) as habit_days,
+                COUNT(DISTINCT cl.date) as challenge_days,
+                COALESCE(COUNT(DISTINCT hl.id) FILTER (WHERE hl.status = 'done'), 0) + 
+                COALESCE(COUNT(DISTINCT cl.id) FILTER (WHERE cl.status = 'done'), 0) as total_completions
+            FROM habits h
+            LEFT JOIN habit_logs hl ON h.id = hl.habit_id 
+                AND hl.date >= CURRENT_DATE - INTERVAL '7 days'
+            LEFT JOIN user_challenges uc ON uc.user_id = $1 AND uc.status = 'in_progress'
+            LEFT JOIN challenge_logs cl ON cl.user_challenge_id = uc.id 
+                AND cl.date >= CURRENT_DATE - INTERVAL '7 days'
+            WHERE h.user_id = $1
+        `, [userId]);
+        
+        const weeklyStats = weeklyResult.rows[0];
+        const weeklyActiveDays = Math.min(7, Math.max(parseInt(weeklyStats.habit_days) || 0, parseInt(weeklyStats.challenge_days) || 0));
+        
+        res.json({
+            totalHabits: totalHabits,
+            totalCompletions: totalCompletions,
+            longestStreak: longestStreak,
+            longestStreakHabit: longestStreakHabit,
+            weeklyActiveDays: weeklyActiveDays,
+            weeklyCompletions: parseInt(weeklyStats.total_completions) || 0
+        });
+    } catch (err) {
+        console.error('Error fetching analytics stats:', err);
+        res.status(500).json({ error: 'Failed to fetch analytics stats' });
     }
 };
