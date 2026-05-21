@@ -1,10 +1,24 @@
 const db = require('../models/db');
 const { calculateStreak, awardBadges, getStreakMultiplier } = require('../utils/gamification');
 const { invalidateUserCache, invalidateHabitCache } = require('../utils/cacheHelper');
+const leaderboardController = require('./leaderboardController');
 
-exports.getAddHabit = (req, res) => {
+exports.getAddHabit = async (req, res) => {
     if (!req.session.user) return res.redirect('/login');
-    res.render('pages/add-habit', { title: 'Add New Habit', habit: null });
+    try {
+        // Get user's XP
+        const userResult = await db.query('SELECT xp FROM users WHERE id = $1', [req.session.user.id]);
+        const userXP = userResult.rows[0]?.xp || 0;
+        
+        res.render('pages/add-habit', { 
+            title: 'Add New Habit', 
+            habit: null,
+            userXP,
+            currentUser: req.session.user
+        });
+    } catch (err) {
+        res.status(500).send('Error loading page');
+    }
 };
 
 exports.postAddHabit = async (req, res, next) => {
@@ -42,7 +56,17 @@ exports.getEditHabit = async (req, res, next) => {
         if (result.rows.length === 0) {
             return res.status(404).send('Habit not found');
         }
-        res.render('pages/add-habit', { title: 'Edit Habit', habit: result.rows[0] });
+        
+        // Get user's XP
+        const userResult = await db.query('SELECT xp FROM users WHERE id = $1', [req.session.user.id]);
+        const userXP = userResult.rows[0]?.xp || 0;
+        
+        res.render('pages/add-habit', { 
+            title: 'Edit Habit', 
+            habit: result.rows[0],
+            userXP,
+            currentUser: req.session.user
+        });
     } catch (err) {
         next(err);
     }
@@ -160,6 +184,9 @@ exports.toggleHabitStatus = async (req, res, next) => {
             // Invalidate analytics cache
             const analyticsCacheKey = `analytics:${userId}`;
             await require('../config/redis').del(analyticsCacheKey);
+            
+            // Invalidate leaderboard cache when habit is completed
+            await leaderboardController.invalidateLeaderboardCache();
             
             // Check for streak milestones and award badges + bonus XP
             try {

@@ -1,14 +1,80 @@
 <%- include('../partials/header') %>
 
-<div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center mb-5 animation-fadeInUp">
-    <div>
-        <h1 class="display-6 fw-bold mb-2">📊 Analytics Dashboard</h1>
-        <p class="text-secondary">Comprehensive insights into your habit building journey</p>
+<div class="modern-dashboard">
+    <!-- Sidebar -->
+    <div class="dashboard-sidebar">
+        <!-- User Profile -->
+        <div class="user-profile-card card-interactive">
+            <div class="user-avatar">
+                <div class="avatar-circle interactive-icon">
+                    <span class="avatar-text"><%= currentUser.username.charAt(0).toUpperCase() %></span>
+                </div>
+                <div class="online-indicator"></div>
+            </div>
+            <div class="user-info">
+                <h6 class="user-name"><%= currentUser.username %></h6>
+                <p class="user-xp">
+                    <span class="interactive-icon">🌟</span> 
+                    <%= user.xp || 0 %> XP
+                    <span class="xp-badge">Level <%= Math.floor((user.xp || 0) / 100) + 1 %></span>
+                </p>
+            </div>
+        </div>
+
+        <!-- Navigation -->
+        <nav class="sidebar-navigation">
+            <a href="/dashboard" class="nav-link">
+                <span class="nav-icon interactive-icon">🏠</span>
+                <span class="nav-label">Dashboard</span>
+            </a>
+            <a href="/challenges" class="nav-link">
+                <span class="nav-icon interactive-icon">🏆</span>
+                <span class="nav-label">Challenges</span>
+            </a>
+            <a href="/analytics" class="nav-link active">
+                <span class="nav-icon interactive-icon">📊</span>
+                <span class="nav-label">Analytics</span>
+                <div class="nav-indicator"></div>
+            </a>
+            <a href="/leaderboard" class="nav-link">
+                <span class="nav-icon interactive-icon">🔥</span>
+                <span class="nav-label">Leaderboards</span>
+            </a>
+            <a href="/habits/add" class="nav-link">
+                <span class="nav-icon interactive-icon">➕</span>
+                <span class="nav-label">Add Habit</span>
+            </a>
+        </nav>
+
+        <!-- Quick Stats -->
+        <div class="sidebar-stats">
+            <h6 class="stats-title">Analytics</h6>
+            <div class="quick-stat">
+                <div class="stat-info">
+                    <span class="stat-value"><%= totalHabits %></span>
+                    <span class="stat-label">Total Habits</span>
+                </div>
+            </div>
+            <div class="quick-stat">
+                <div class="stat-info">
+                    <span class="stat-value"><%= totalCompletions %></span>
+                    <span class="stat-label">Completions</span>
+                </div>
+            </div>
+        </div>
     </div>
-    <a href="/dashboard" class="btn btn-outline-primary interactive mt-3 mt-sm-0" role="button">
-        <span class="me-2">←</span>Back to Dashboard
-    </a>
-</div>
+
+    <!-- Main Content -->
+    <div class="dashboard-main">
+        <!-- Header Section -->
+        <div class="dashboard-header">
+            <div class="header-content">
+                <h1 class="dashboard-title">📊 Analytics Dashboard</h1>
+                <p class="dashboard-subtitle">Comprehensive insights into your habit building journey</p>
+            </div>
+        </div>
+
+        <div class="dashboard-main-content">
 
 <!-- Overview Stats Row -->
 <div class="row g-4 mb-5">
@@ -604,5 +670,9 @@ document.querySelectorAll('[data-delay]').forEach(element => {
     color: #333;
 }
 </style>
+
+        </div>
+    </div>
+</div>
 
 <%- include('../partials/footer') %>

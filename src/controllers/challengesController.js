@@ -1,6 +1,7 @@
 const db = require('../models/db');
 const { calculateChallengeStreak, awardBadges, getStreakMultiplier } = require('../utils/gamification');
 const { invalidateChallengeCache, invalidateUserCache } = require('../utils/cacheHelper');
+const leaderboardController = require('./leaderboardController');
 
 exports.getChallengesPage = async (req, res, next) => {
     try {
@@ -204,6 +205,9 @@ exports.toggleChallengeStatus = async (req, res, next) => {
             
             // Invalidate caches after XP update
             await invalidateUserCache(userId);
+            
+            // Invalidate leaderboard cache when challenge is completed
+            await leaderboardController.invalidateLeaderboardCache();
             
             // Check for streak milestones and award badges + bonus XP
             try {

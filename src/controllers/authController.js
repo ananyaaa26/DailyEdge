@@ -1,5 +1,6 @@
 const db = require('../models/db');
 const bcrypt = require('bcrypt');
+const mailHelper = require('../utils/mailHelper');
 
 // ======================
 // GET SIGNUP
@@ -74,6 +75,19 @@ exports.postSignup = async (req, res, next) => {
             email: result.rows[0].email,
             xp: 0 
         };
+
+        // Send welcome email (non-blocking)
+        mailHelper.sendWelcomeEmail(result.rows[0].email, result.rows[0].username)
+            .then(emailResult => {
+                if (emailResult.success) {
+                    console.log('✓ Welcome email sent successfully to', result.rows[0].email);
+                } else {
+                    console.log('⚠ Welcome email failed:', emailResult.error);
+                }
+            })
+            .catch(err => {
+                console.error('⚠ Error in email sending:', err.message);
+            });
 
         res.redirect('/dashboard?welcome=true');
     } catch (err) {
@@ -181,6 +195,19 @@ exports.postLogin = async (req, res, next) => {
             email: user.email,
             xp: user.xp || 0
         };
+
+        // Send welcome back email (non-blocking)
+        mailHelper.sendWelcomeBackEmail(user.email, user.username)
+            .then(result => {
+                if (result.success) {
+                    console.log('✓ Welcome back email sent successfully to', user.email);
+                } else {
+                    console.log('⚠ Welcome back email failed:', result.error);
+                }
+            })
+            .catch(err => {
+                console.error('⚠ Error in email sending:', err.message);
+            });
 
         res.redirect('/dashboard');
     } catch (err) {
