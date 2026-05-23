@@ -31,7 +31,7 @@ const calculateAllStreaks = async () => {
 // Get streaks leaderboard with caching - ranked by XP
 exports.getStreaksLeaderboard = async (req, res, next) => {
     try {
-        const cacheKey = 'leaderboard:streaks:top50';
+        const cacheKey = 'leaderboard:streaks:all';
         const userId = req.session?.user?.id;
         
         // Check Redis cache first
@@ -52,11 +52,17 @@ exports.getStreaksLeaderboard = async (req, res, next) => {
             });
         }
 
-        // Calculate streaks
+        // Calculate streaks for users who have them
         const userStreaks = await calculateAllStreaks();
-        const userIds = Object.keys(userStreaks);
 
-        if (userIds.length === 0) {
+        // Get ALL users sorted by XP (not just those with active habits)
+        const usersResult = await db.query(`
+            SELECT id, username, xp FROM users 
+            WHERE is_suspended = FALSE
+            ORDER BY xp DESC
+        `);
+
+        if (usersResult.rows.length === 0) {
             await redisClient.setEx(cacheKey, 300, JSON.stringify([]));
             return res.json({
                 success: true,
@@ -66,24 +72,15 @@ exports.getStreaksLeaderboard = async (req, res, next) => {
             });
         }
 
-        // Get user details - sorted by XP (not streaks)
-        const usersResult = await db.query(`
-            SELECT id, username, xp FROM users 
-            WHERE id = ANY($1) AND is_suspended = FALSE
-            ORDER BY xp DESC
-        `, [userIds.map(Number)]);
-
         // Build leaderboard with streaks, sorted by XP
-        const leaderboard = usersResult.rows
-            .slice(0, 50)
-            .map((user, index) => ({
-                id: user.id,
-                username: user.username,
-                xp: user.xp,
-                total_streak: userStreaks[user.id] || 0,
-                rank: index + 1,
-                isCurrentUser: user.id === userId
-            }));
+        const leaderboard = usersResult.rows.map((user, index) => ({
+            id: user.id,
+            username: user.username,
+            xp: user.xp,
+            total_streak: userStreaks[user.id] || 0,
+            rank: index + 1,
+            isCurrentUser: user.id === userId
+        }));
 
         // Cache for 5 minutes
         await redisClient.setEx(cacheKey, 300, JSON.stringify(leaderboard));
@@ -142,7 +139,7 @@ exports.getUserStreakRank = async (req, res, next) => {
 // Invalidate cache when habits are completed
 exports.invalidateLeaderboardCache = async () => {
     try {
-        await redisClient.del('leaderboard:streaks:top50');
+        await redisClient.del('leaderboard:streaks:all');
         console.log('Leaderboard cache invalidated');
     } catch (error) {
         console.error('Error invalidating leaderboard cache:', error);
@@ -158,16 +155,16 @@ exports.getLeaderboardPage = async (req, res, next) => {
 
         const userId = req.session.user.id;
 
-        // Get user's XP
-        const userResult = await db.query('SELECT xp FROM users WHERE id = $1', [userId]);
-        const userXP = userResult.rows[0]?.xp || 0;
+        // Get user info (matching dashboard structure)
+        const userResult = await db.query('SELECT username, xp, created_at FROM users WHERE id = $1', [userId]);
+        const user = userResult.rows[0];
 
         // Get user's XP-based rank
         const rankResult = await db.query(`
             SELECT COUNT(*) as rank_count 
             FROM users 
             WHERE xp > $1 AND is_suspended = FALSE
-        `, [userXP]);
+        `, [user.xp]);
         
         const userRank = (rankResult.rows[0]?.rank_count || 0) + 1;
 
@@ -178,9 +175,9 @@ exports.getLeaderboardPage = async (req, res, next) => {
         res.render('pages/leaderboard-page', {
             title: 'Leaderboards',
             currentUser: req.session.user,
-            userXP,
-            userStreak,
-            userRank
+            user,
+            userRank,
+            userStreak
         });
     } catch (error) {
         console.error('Error rendering leaderboard page:', error);

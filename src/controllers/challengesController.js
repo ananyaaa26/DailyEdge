@@ -6,6 +6,18 @@ const leaderboardController = require('./leaderboardController');
 exports.getChallengesPage = async (req, res, next) => {
     try {
         const userId = req.session.user.id;
+        const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+        
+        // Fetch active habits for today's completion count
+        const habitsResult = await db.query(
+            `SELECT h.id,
+             EXISTS(SELECT 1 FROM habit_logs hl WHERE hl.habit_id = h.id AND hl.date = $1 AND hl.status = 'done') as is_completed
+             FROM habits h 
+             WHERE h.user_id = $2 AND h.status = 'in_progress'`, 
+            [today, userId]
+        );
+        
+        const habits = habitsResult.rows;
         
         // Fetch all available challenges with user participation Status
         const allChallengesResult = await db.query(`
@@ -19,11 +31,12 @@ exports.getChallengesPage = async (req, res, next) => {
                    CASE 
                        WHEN uc.status = 'completed' THEN true 
                        ELSE false 
-                   END as is_completed
+                   END as is_completed,
+                   EXISTS(SELECT 1 FROM challenge_logs cl WHERE cl.user_challenge_id = uc.id AND cl.date = $1 AND cl.status = 'done') as is_completed_today
             FROM challenges c
-            LEFT JOIN user_challenges uc ON c.id = uc.challenge_id AND uc.user_id = $1
+            LEFT JOIN user_challenges uc ON c.id = uc.challenge_id AND uc.user_id = $2
             ORDER BY c.duration_days, c.xp_reward
-        `, [userId]);
+        `, [today, userId]);
 
         // Get user's current XP and badges
         const userStatsResult = await db.query(
@@ -32,6 +45,10 @@ exports.getChallengesPage = async (req, res, next) => {
         );
 
         const userStats = userStatsResult.rows[0] || { xp: 0, badge_count: 0 };
+        
+        // Get user info (matching dashboard structure)
+        const userResult = await db.query('SELECT username, xp, created_at FROM users WHERE id = $1', [userId]);
+        const user = userResult.rows[0];
 
         // Separate challenges into categories
         const availableChallenges = allChallengesResult.rows.filter(c => !c.is_participating);
@@ -42,13 +59,46 @@ exports.getChallengesPage = async (req, res, next) => {
         for (const challenge of activeChallenges) {
             if (challenge.start_date) {
                 const startDate = new Date(challenge.start_date);
-                const today = new Date();
-                const daysPassed = Math.floor((today - startDate) / (1000 * 60 * 60 * 24)) + 1;
+                const todayDate = new Date();
+                const daysPassed = Math.floor((todayDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
                 challenge.progress = Math.min(daysPassed, challenge.duration_days);
                 challenge.progress_percentage = Math.round((challenge.progress / challenge.duration_days) * 100);
                 challenge.days_remaining = Math.max(0, challenge.duration_days - daysPassed);
             }
         }
+
+        // Calculate today's completion stats (combine habits and challenges)
+        const completedCount = habits.filter(h => h.is_completed).length + activeChallenges.filter(c => c.is_completed_today).length;
+        const totalCount = habits.length + activeChallenges.length;
+
+        // Get weekly stats (combine habits and challenges)
+        const weeklyStatsResult = await db.query(`
+            SELECT 
+                COUNT(DISTINCT hl.date) as active_days,
+                COUNT(*) as total_completions
+            FROM habit_logs hl
+            JOIN habits h ON h.id = hl.habit_id
+            WHERE h.user_id = $1 AND hl.status = 'done' AND hl.date >= CURRENT_DATE - INTERVAL '7 days'
+        `, [userId]);
+        
+        const challengeWeeklyStatsResult = await db.query(`
+            SELECT 
+                COUNT(DISTINCT cl.date) as active_days,
+                COUNT(*) as total_completions
+            FROM challenge_logs cl
+            JOIN user_challenges uc ON uc.id = cl.user_challenge_id
+            WHERE uc.user_id = $1 AND cl.status = 'done' AND cl.date >= CURRENT_DATE - INTERVAL '7 days'
+        `, [userId]);
+        
+        const weeklyStats = {
+            active_days: Math.max(
+                parseInt(weeklyStatsResult.rows[0]?.active_days || 0),
+                parseInt(challengeWeeklyStatsResult.rows[0]?.active_days || 0)
+            ),
+            total_completions: 
+                parseInt(weeklyStatsResult.rows[0]?.total_completions || 0) + 
+                parseInt(challengeWeeklyStatsResult.rows[0]?.total_completions || 0)
+        };
 
         res.render('pages/challenges', {
             title: 'Challenges',
@@ -56,7 +106,11 @@ exports.getChallengesPage = async (req, res, next) => {
             availableChallenges,
             activeChallenges,
             completedChallenges,
-            userStats
+            userStats,
+            user,
+            completedCount,
+            totalCount,
+            weeklyStats
         });
     } catch (err) {
         console.error('Challenges page error:', err);
