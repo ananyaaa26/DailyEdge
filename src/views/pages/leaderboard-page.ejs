@@ -15,8 +15,8 @@
                 <h6 class="user-name"><%= currentUser.username %></h6>
                 <p class="user-xp">
                     <span class="interactive-icon">🌟</span> 
-                    <%= userXP || 0 %> XP
-                    <span class="xp-badge">Level <%= Math.floor((userXP || 0) / 100) + 1 %></span>
+                    <%= user.xp || 0 %> XP
+                    <span class="xp-badge">Level <%= Math.floor((user.xp || 0) / 100) + 1 %></span>
                 </p>
             </div>
         </div>
