@@ -307,19 +307,6 @@ The application implements intelligent caching for optimal performance:
 - **Session Storage**: Client-side caching for user ID and session data
 - **Database Query Optimization**: Indexed queries for fast habit and challenge lookups
 
-## 📞 Support & Contributing
-
-For issues, feature requests, or contributions, please visit the [GitHub repository](https://github.com/ananyaaa26/DailyEdge).
-
-## 📄 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## 👥 Author
-
-**Ananya** - Full-stack development and application design
-
----
 
 **Last Updated**: May 2026
 **Version**: 2.0 - Leaderboard and UI Enhancements
