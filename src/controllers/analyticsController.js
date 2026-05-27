@@ -38,14 +38,14 @@ exports.getAnalytics = async (req, res, next) => {
         const userResult = await db.query('SELECT username, xp, created_at FROM users WHERE id = $1', [userId]);
         const user = userResult.rows[0];
 
-        // Get all habits with their completion stats
+        // Get all habits with their completion stats - ONLY active habits
         const habitsResult = await db.query(`
             SELECT h.id, h.name, h.category, h.created_at,
                    COUNT(hl.id) FILTER (WHERE hl.status = 'done') as total_completions,
                    COUNT(DISTINCT hl.date) FILTER (WHERE hl.status = 'done') as active_days
             FROM habits h
             LEFT JOIN habit_logs hl ON h.id = hl.habit_id
-            WHERE h.user_id = $1 AND h.status != 'completed' AND h.status != 'failed'
+            WHERE h.user_id = $1 AND h.status = 'in_progress'
             GROUP BY h.id, h.name, h.category, h.created_at
             ORDER BY total_completions DESC
         `, [userId]);
@@ -114,24 +114,34 @@ exports.getAnalytics = async (req, res, next) => {
         const totalChallenges = challenges.length;
         const totalCompletions = allItems.reduce((sum, item) => sum + parseInt(item.total_completions), 0);
         
-        // Today's statistics (including both habits and challenges)
+        // Today's statistics - count active habits and challenges separately
         const today = new Date().toISOString().split('T')[0];
-        const todayResult = await db.query(`
+        
+        // Count today's active habits (in_progress only)
+        const todayHabitsResult = await db.query(`
             SELECT 
-                COUNT(DISTINCT h.id) as total_habits,
-                COUNT(DISTINCT CASE WHEN hl.status = 'done' THEN h.id END) as completed_habits,
-                COUNT(DISTINCT uc.id) as total_challenges,
-                COUNT(DISTINCT CASE WHEN cl.status = 'done' THEN uc.id END) as completed_challenges
+                COUNT(DISTINCT h.id) as total,
+                COUNT(DISTINCT CASE WHEN hl.status = 'done' THEN h.id END) as completed
             FROM habits h
             LEFT JOIN habit_logs hl ON h.id = hl.habit_id AND hl.date = $1
-            LEFT JOIN user_challenges uc ON uc.user_id = $2 AND uc.status = 'in_progress'
-            LEFT JOIN challenge_logs cl ON cl.user_challenge_id = uc.id AND cl.date = $1
-            WHERE h.user_id = $2
+            WHERE h.user_id = $2 AND h.status = 'in_progress'
         `, [today, userId]);
         
-        const todayData = todayResult.rows[0];
-        const totalToday = parseInt(todayData.total_habits) + parseInt(todayData.total_challenges);
-        const completedToday = parseInt(todayData.completed_habits) + parseInt(todayData.completed_challenges);
+        // Count today's active challenges (in_progress only)
+        const todayChallengesResult = await db.query(`
+            SELECT 
+                COUNT(DISTINCT uc.id) as total,
+                COUNT(DISTINCT CASE WHEN cl.status = 'done' THEN uc.id END) as completed
+            FROM user_challenges uc
+            LEFT JOIN challenge_logs cl ON cl.user_challenge_id = uc.id AND cl.date = $1
+            WHERE uc.user_id = $2 AND uc.status = 'in_progress'
+        `, [today, userId]);
+        
+        const todayHabitsData = todayHabitsResult.rows[0];
+        const todayChallengesData = todayChallengesResult.rows[0];
+        
+        const completedToday = parseInt(todayHabitsData.completed || 0) + parseInt(todayChallengesData.completed || 0);
+        const totalToday = parseInt(todayHabitsData.total || 0) + parseInt(todayChallengesData.total || 0);
         const completionRate = totalToday > 0 ? Math.round((completedToday / totalToday) * 100) : 0;
         
         const todayStats = {
@@ -139,23 +149,44 @@ exports.getAnalytics = async (req, res, next) => {
             total_today: totalToday
         };
 
-        // Weekly statistics (including both habits and challenges)
-        const weeklyResult = await db.query(`
+        // Weekly statistics - count habits and challenges separately
+        const weeklyHabitsResult = await db.query(`
             SELECT 
-                COUNT(DISTINCT hl.date) + COUNT(DISTINCT cl.date) as active_days,
-                COALESCE(COUNT(DISTINCT hl.id) FILTER (WHERE hl.status = 'done'), 0) + 
-                COALESCE(COUNT(DISTINCT cl.id) FILTER (WHERE cl.status = 'done'), 0) as total_completions,
-                COUNT(DISTINCT h.id) + COUNT(DISTINCT uc.id) as items_worked_on
+                COUNT(DISTINCT hl.date) as active_days,
+                COALESCE(COUNT(DISTINCT hl.id) FILTER (WHERE hl.status = 'done'), 0) as total_completions,
+                COUNT(DISTINCT h.id) as items_worked_on
             FROM habits h
             LEFT JOIN habit_logs hl ON h.id = hl.habit_id 
                 AND hl.date >= CURRENT_DATE - INTERVAL '7 days'
-            LEFT JOIN user_challenges uc ON uc.user_id = $1 AND uc.status = 'in_progress'
-            LEFT JOIN challenge_logs cl ON cl.user_challenge_id = uc.id 
-                AND cl.date >= CURRENT_DATE - INTERVAL '7 days'
-            WHERE h.user_id = $1
+            WHERE h.user_id = $1 AND h.status = 'in_progress'
         `, [userId]);
         
-        const weeklyStats = weeklyResult.rows[0];
+        const weeklyChallengesResult = await db.query(`
+            SELECT 
+                COUNT(DISTINCT cl.date) as active_days,
+                COALESCE(COUNT(DISTINCT cl.id) FILTER (WHERE cl.status = 'done'), 0) as total_completions,
+                COUNT(DISTINCT uc.id) as items_worked_on
+            FROM user_challenges uc
+            LEFT JOIN challenge_logs cl ON cl.user_challenge_id = uc.id 
+                AND cl.date >= CURRENT_DATE - INTERVAL '7 days'
+            WHERE uc.user_id = $1 AND uc.status = 'in_progress'
+        `, [userId]);
+        
+        const weeklyHabitsData = weeklyHabitsResult.rows[0];
+        const weeklyChallengesData = weeklyChallengesResult.rows[0];
+        
+        const weeklyStats = {
+            active_days: Math.max(
+                parseInt(weeklyHabitsData.active_days || 0),
+                parseInt(weeklyChallengesData.active_days || 0)
+            ),
+            total_completions: 
+                parseInt(weeklyHabitsData.total_completions || 0) + 
+                parseInt(weeklyChallengesData.total_completions || 0),
+            items_worked_on:
+                parseInt(weeklyHabitsData.items_worked_on || 0) +
+                parseInt(weeklyChallengesData.items_worked_on || 0)
+        };
 
         // Find most productive day of the week
         const productiveDayResult = await db.query(`
@@ -340,14 +371,14 @@ exports.getAnalyticsStats = async (req, res, next) => {
     try {
         const userId = req.session.user.id;
         
-        // Get all habits with their completion stats
+        // Get all habits with their completion stats - ONLY active habits
         const habitsResult = await db.query(`
             SELECT h.id, h.name, h.category, h.created_at,
                    COUNT(hl.id) FILTER (WHERE hl.status = 'done') as total_completions,
                    COUNT(DISTINCT hl.date) FILTER (WHERE hl.status = 'done') as active_days
             FROM habits h
             LEFT JOIN habit_logs hl ON h.id = hl.habit_id
-            WHERE h.user_id = $1 AND h.status != 'completed' AND h.status != 'failed'
+            WHERE h.user_id = $1 AND h.status = 'in_progress'
             GROUP BY h.id, h.name, h.category, h.created_at
             ORDER BY total_completions DESC
         `, [userId]);

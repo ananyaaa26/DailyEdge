@@ -270,11 +270,11 @@ exports.getDashboardStats = async (req, res, next) => {
         const userResult = await db.query('SELECT xp FROM users WHERE id = $1', [userId]);
         const xp = userResult.rows[0]?.xp || 0;
 
-        // Get today's completion stats
+        // Get today's completion stats - ONLY active habits
         const habitsResult = await db.query(
             `SELECT COUNT(*) as total,
                     COUNT(CASE WHEN EXISTS(SELECT 1 FROM habit_logs hl WHERE hl.habit_id = h.id AND hl.date = $1 AND hl.status = 'done') THEN 1 END) as completed
-             FROM habits h WHERE h.user_id = $2`,
+             FROM habits h WHERE h.user_id = $2 AND h.status = 'in_progress'`,
             [today, userId]
         );
 
