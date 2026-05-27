@@ -196,19 +196,6 @@ exports.postLogin = async (req, res, next) => {
             xp: user.xp || 0
         };
 
-        // Send welcome back email (non-blocking)
-        mailHelper.sendWelcomeBackEmail(user.email, user.username)
-            .then(result => {
-                if (result.success) {
-                    console.log('✓ Welcome back email sent successfully to', user.email);
-                } else {
-                    console.log('⚠ Welcome back email failed:', result.error);
-                }
-            })
-            .catch(err => {
-                console.error('⚠ Error in email sending:', err.message);
-            });
-
         res.redirect('/dashboard');
     } catch (err) {
         console.error('Login error:', err);
