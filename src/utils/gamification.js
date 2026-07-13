@@ -1,22 +1,28 @@
 const db = require('../models/db');
 const redisClient = require('../config/redis');
 
+const getDbClient = (client = db) => client;
+
 // Calculates the current streak for a given habit (consecutive days from today)
-const calculateStreak = async (habitId) => {
+const calculateStreak = async (habitId, client) => {
+    const dbClient = getDbClient(client);
+
     try {
-        // Check cache first
         const cacheKey = `streak:${habitId}`;
-        const cachedStreak = await redisClient.get(cacheKey);
-        
-        if (cachedStreak !== null) {
-            console.log(`Streak cache HIT for habit ${habitId}`);
-            return parseInt(cachedStreak);
+        if (!client) {
+            // Use Redis only when we are not inside a transaction.
+            const cachedStreak = await redisClient.get(cacheKey);
+
+            if (cachedStreak !== null) {
+                console.log(`Streak cache HIT for habit ${habitId}`);
+                return parseInt(cachedStreak);
+            }
+
+            console.log(`Streak cache MISS for habit ${habitId}`);
         }
         
-        console.log(`Streak cache MISS for habit ${habitId}`);
-        
         // Get all completed dates for this habit, ordered from most recent
-        const result = await db.query(`
+        const result = await dbClient.query(`
             SELECT date 
             FROM habit_logs 
             WHERE habit_id = $1 AND status = 'done'
@@ -24,7 +30,10 @@ const calculateStreak = async (habitId) => {
         `, [habitId]);
         
         if (result.rows.length === 0) {
-            await redisClient.setEx(cacheKey, 300, '0'); // Cache for 5 minutes
+            if (!client) {
+                await redisClient.setEx(cacheKey, 300, '0'); // Cache for 5 minutes
+            }
+            
             return 0;
         }
         
@@ -40,7 +49,10 @@ const calculateStreak = async (habitId) => {
         
         // If last completion was more than 1 day ago, streak is broken
         if (daysDiff > 1) {
-            await redisClient.setEx(cacheKey, 300, '0');
+            if (!client) {
+                await redisClient.setEx(cacheKey, 300, '0');
+            }
+
             return 0;
         }
         
@@ -64,7 +76,9 @@ const calculateStreak = async (habitId) => {
         }
         
         // Cache the calculated streak for 5 minutes
-        await redisClient.setEx(cacheKey, 300, streak.toString());
+        if (!client) {
+            await redisClient.setEx(cacheKey, 300, streak.toString());
+        }
         
         return streak;
     } catch (error) {
@@ -74,21 +88,25 @@ const calculateStreak = async (habitId) => {
 };
 
 // Calculates the current streak for a given challenge (consecutive days from today)
-const calculateChallengeStreak = async (userChallengeId) => {
+const calculateChallengeStreak = async (userChallengeId, client) => {
+    const dbClient = getDbClient(client);
+
     try {
-        // Check cache first
         const cacheKey = `challenge_streak:${userChallengeId}`;
-        const cachedStreak = await redisClient.get(cacheKey);
-        
-        if (cachedStreak !== null) {
-            console.log(`Challenge streak cache HIT for ${userChallengeId}`);
-            return parseInt(cachedStreak);
+        if (!client) {
+            // Use Redis only when we are not inside a transaction.
+            const cachedStreak = await redisClient.get(cacheKey);
+
+            if (cachedStreak !== null) {
+                console.log(`Challenge streak cache HIT for ${userChallengeId}`);
+                return parseInt(cachedStreak);
+            }
+
+            console.log(`Challenge streak cache MISS for ${userChallengeId}`);
         }
         
-        console.log(`Challenge streak cache MISS for ${userChallengeId}`);
-        
         // Get all completed dates for this challenge, ordered from most recent
-        const result = await db.query(`
+        const result = await dbClient.query(`
             SELECT date 
             FROM challenge_logs 
             WHERE user_challenge_id = $1 AND status = 'done'
@@ -96,7 +114,10 @@ const calculateChallengeStreak = async (userChallengeId) => {
         `, [userChallengeId]);
         
         if (result.rows.length === 0) {
-            await redisClient.setEx(cacheKey, 300, '0');
+            if (!client) {
+                await redisClient.setEx(cacheKey, 300, '0');
+            }
+
             return 0;
         }
         
@@ -112,7 +133,10 @@ const calculateChallengeStreak = async (userChallengeId) => {
         
         // If last completion was more than 1 day ago, streak is broken
         if (daysDiff > 1) {
-            await redisClient.setEx(cacheKey, 300, '0');
+            if (!client) {
+                await redisClient.setEx(cacheKey, 300, '0');
+            }
+
             return 0;
         }
         
@@ -136,7 +160,9 @@ const calculateChallengeStreak = async (userChallengeId) => {
         }
         
         // Cache the calculated streak for 5 minutes
-        await redisClient.setEx(cacheKey, 300, streak.toString());
+        if (!client) {
+            await redisClient.setEx(cacheKey, 300, streak.toString());
+        }
         
         return streak;
     } catch (error) {
@@ -146,7 +172,9 @@ const calculateChallengeStreak = async (userChallengeId) => {
 };
 
 // Awards badges and bonus XP if milestones are met
-const awardBadges = async (userId, streak) => {
+const awardBadges = async (userId, streak, client) => {
+    const dbClient = getDbClient(client);
+
     const milestones = {
         3: { badge: '3-Day Streak', xp: 10 },
         7: { badge: '7-Day Streak', xp: 25 },
@@ -160,20 +188,15 @@ const awardBadges = async (userId, streak) => {
     
     if (milestone) {
         // Check if user already has this badge
-        const existingBadge = await db.query(
-            'SELECT id FROM badges WHERE user_id = $1 AND badge_name = $2',
-            [userId, milestone.badge]
-        );
-        
-        if (existingBadge.rows.length === 0) {
+        try {
             // Award the badge
-            await db.query(
+            await dbClient.query(
                 'INSERT INTO badges (user_id, badge_name) VALUES ($1, $2)',
                 [userId, milestone.badge]
             );
             
             // Award bonus XP
-            await db.query(
+            await dbClient.query(
                 'UPDATE users SET xp = xp + $1 WHERE id = $2',
                 [milestone.xp, userId]
             );
@@ -181,6 +204,12 @@ const awardBadges = async (userId, streak) => {
             console.log(`Awarded badge "${milestone.badge}" and ${milestone.xp} bonus XP to user ${userId}`);
             
             return { badge: milestone.badge, bonusXp: milestone.xp };
+        } catch (error) {
+            if (error.code === '23505') {
+                return null;
+            }
+
+            throw error;
         }
     }
     

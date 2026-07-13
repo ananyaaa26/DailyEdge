@@ -134,16 +134,19 @@ exports.toggleHabitStatus = async (req, res, next) => {
     const { id } = req.params;
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
     const userId = req.session.user.id;
+    const client = await db.getClient();
 
     try {
+        await client.query('BEGIN');
+
         // Verify the habit belongs to the user
-        const habitCheck = await db.query('SELECT id FROM habits WHERE id = $1 AND user_id = $2', [id, userId]);
+        const habitCheck = await client.query('SELECT id FROM habits WHERE id = $1 AND user_id = $2 FOR UPDATE', [id, userId]);
         if (habitCheck.rows.length === 0) {
-            return res.status(404).json({ error: 'Habit not found' });
+            throw new Error('Habit not found');
         }
 
         // Check if log for today exists
-        const existingLog = await db.query(
+        const existingLog = await client.query(
             'SELECT id, status FROM habit_logs WHERE habit_id = $1 AND date = $2',
             [id, today]
         );
@@ -157,16 +160,16 @@ exports.toggleHabitStatus = async (req, res, next) => {
             newStatus = currentStatus === 'done' ? 'not done' : 'done';
             wasCompleted = currentStatus === 'done';
             
-            await db.query('UPDATE habit_logs SET status = $1 WHERE id = $2', [newStatus, existingLog.rows[0].id]);
+            await client.query('UPDATE habit_logs SET status = $1 WHERE id = $2', [newStatus, existingLog.rows[0].id]);
         } else {
             // Insert new log as completed
-            await db.query('INSERT INTO habit_logs (habit_id, date, status) VALUES ($1, $2, $3)', [id, today, newStatus]);
+            await client.query('INSERT INTO habit_logs (habit_id, date, status) VALUES ($1, $2, $3)', [id, today, newStatus]);
         }
 
         // Award or remove XP based on completion status
         if (newStatus === 'done' && !wasCompleted) {
             // Calculate current streak
-            const streak = await calculateStreak(id);
+            const streak = await calculateStreak(id, client);
             
             // Get streak multiplier
             const multiplier = getStreakMultiplier(streak);
@@ -176,26 +179,27 @@ exports.toggleHabitStatus = async (req, res, next) => {
             const earnedXP = Math.round(baseXP * multiplier);
             
             // Award XP with streak bonus
-            await db.query('UPDATE users SET xp = xp + $1 WHERE id = $2', [earnedXP, userId]);
-            
-            // Invalidate user caches after XP update
-            await invalidateUserCache(userId);
-            
-            // Invalidate analytics cache
-            const analyticsCacheKey = `analytics:${userId}`;
-            await require('../config/redis').del(analyticsCacheKey);
-            
-            // Invalidate leaderboard cache when habit is completed
-            await leaderboardController.invalidateLeaderboardCache();
-            
+            await client.query('UPDATE users SET xp = xp + $1 WHERE id = $2', [earnedXP, userId]);
+
             // Check for streak milestones and award badges + bonus XP
+            const badgeReward = await awardBadges(userId, streak, client);
+
+            await client.query('COMMIT');
+
             try {
-                const badgeReward = await awardBadges(userId, streak);
-                
+                // Invalidate user caches after XP update
+                await invalidateUserCache(userId);
+
+                // Invalidate analytics cache
+                const analyticsCacheKey = `analytics:${userId}`;
+                await require('../config/redis').del(analyticsCacheKey);
+
+                // Invalidate leaderboard cache when habit is completed
+                await leaderboardController.invalidateLeaderboardCache();
+
                 // Emit real-time updates via Socket.io
                 const io = req.app.get('io');
                 if (io) {
-                    // Emit to user's dashboard for real-time updates
                     io.to(`user_${userId}`).emit('habit_completed_update', {
                         habitId: id,
                         streak: streak,
@@ -203,43 +207,69 @@ exports.toggleHabitStatus = async (req, res, next) => {
                         multiplier: multiplier,
                         badgeReward: badgeReward
                     });
-                    
-                    // Emit to analytics page for real-time stats update
+
                     io.to(`user_${userId}`).emit('analytics_refresh_needed', {
                         userId: userId,
                         action: 'habit_completed',
                         timestamp: new Date()
                     });
                 }
-                
-                res.json({ 
-                    success: true, 
-                    status: newStatus,
-                    completed: newStatus === 'done',
-                    xpEarned: earnedXP,
-                    streak: streak,
-                    multiplier: multiplier,
-                    badgeReward: badgeReward
-                });
-                return;
-            } catch (streakErr) {
-                console.error('Error calculating streak:', streakErr);
+            } catch (postCommitErr) {
+                console.error('Post-commit habit completion work failed:', postCommitErr);
             }
+
+            return res.json({ 
+                success: true, 
+                status: newStatus,
+                completed: newStatus === 'done',
+                xpEarned: earnedXP,
+                streak: streak,
+                multiplier: multiplier,
+                badgeReward: badgeReward
+            });
         } else if (newStatus === 'not done' && wasCompleted) {
             // Uncompleted - remove XP (but don't go below 0)
-            await db.query('UPDATE users SET xp = GREATEST(xp - 10, 0) WHERE id = $1', [userId]);
-            
-            // Invalidate user caches after XP change
-            await invalidateUserCache(userId);
+            await client.query('UPDATE users SET xp = GREATEST(xp - 10, 0) WHERE id = $1', [userId]);
+
+            await client.query('COMMIT');
+
+            try {
+                // Invalidate user caches after XP change
+                await invalidateUserCache(userId);
+
+                await leaderboardController.invalidateLeaderboardCache();
+            } catch (postCommitErr) {
+                console.error('Post-commit habit uncomplete work failed:', postCommitErr);
+            }
+
+            return res.json({ 
+                success: true, 
+                status: newStatus,
+                completed: newStatus === 'done'
+            });
         }
 
-        res.json({ 
+        await client.query('COMMIT');
+
+        return res.json({ 
             success: true, 
             status: newStatus,
             completed: newStatus === 'done'
         });
     } catch (err) {
+        try {
+            await client.query('ROLLBACK');
+        } catch (rollbackErr) {
+            console.error('Rollback failed:', rollbackErr);
+        }
+
         console.error('Toggle habit error:', err);
+        if (err.message === 'Habit not found') {
+            return res.status(404).json({ error: 'Habit not found' });
+        }
+
         res.status(500).json({ error: 'An error occurred while updating the habit' });
+    } finally {
+        client.release();
     }
 };

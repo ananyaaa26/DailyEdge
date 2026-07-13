@@ -1,15 +1,19 @@
 const db = require('../models/db');
 const { calculateStreak, calculateChallengeStreak } = require('./gamification');
 
+const getDbClient = (client = db) => client;
+
 /**
  * Checks and updates habit completion status based on duration and consecutive completion
  * @param {number} habitId - The habit ID to check
  * @returns {Promise<object>} Status update result
  */
-async function checkHabitCompletion(habitId) {
+async function checkHabitCompletion(habitId, client) {
+    const dbClient = getDbClient(client);
+
     try {
         // Get habit details
-        const habitResult = await db.query(
+        const habitResult = await dbClient.query(
             'SELECT id, user_id, duration_days, created_at, status FROM habits WHERE id = $1',
             [habitId]
         );
@@ -30,12 +34,12 @@ async function checkHabitCompletion(habitId) {
         const startDate = new Date(habit.created_at);
         startDate.setHours(0, 0, 0, 0);
         const daysSinceStart = Math.floor((today - startDate) / (1000 * 60 * 60 * 24));
-        const currentStreak = await calculateStreak(habitId);
+        const currentStreak = await calculateStreak(habitId, dbClient);
 
         // Check if user has completed all required consecutive days
         if (currentStreak >= habit.duration_days) {
             // SUCCESS: Completed all days consecutively
-            await db.query(
+            await dbClient.query(
                 'UPDATE habits SET status = $1, completed_at = NOW() WHERE id = $2',
                 ['completed', habitId]
             );
@@ -51,7 +55,7 @@ async function checkHabitCompletion(habitId) {
         // Check if duration period has passed without completing
         if (daysSinceStart >= habit.duration_days) {
             // FAILED: Duration passed but didn't maintain streak
-            await db.query(
+            await dbClient.query(
                 'UPDATE habits SET status = $1, end_date = CURRENT_DATE WHERE id = $2',
                 ['failed', habitId]
             );
@@ -83,10 +87,12 @@ async function checkHabitCompletion(habitId) {
  * @param {number} userChallengeId - The user_challenge ID to check
  * @returns {Promise<object>} Status update result
  */
-async function checkChallengeCompletion(userChallengeId) {
+async function checkChallengeCompletion(userChallengeId, client) {
+    const dbClient = getDbClient(client);
+
     try {
         // Get challenge details
-        const challengeResult = await db.query(`
+        const challengeResult = await dbClient.query(`
             SELECT uc.id, uc.user_id, uc.challenge_id, uc.start_date, uc.status,
                    c.duration_days, c.xp_reward, c.title
             FROM user_challenges uc
@@ -110,31 +116,31 @@ async function checkChallengeCompletion(userChallengeId) {
         const startDate = new Date(challenge.start_date);
         startDate.setHours(0, 0, 0, 0);
         const daysSinceStart = Math.floor((today - startDate) / (1000 * 60 * 60 * 24));
-        const currentStreak = await calculateChallengeStreak(userChallengeId);
+        const currentStreak = await calculateChallengeStreak(userChallengeId, dbClient);
 
         // Check if user has completed all required consecutive days
         if (currentStreak >= challenge.duration_days) {
             // SUCCESS: Completed all days - award XP and badge
-            await db.query(
+            await dbClient.query(
                 'UPDATE user_challenges SET status = $1, completed_at = NOW() WHERE id = $2',
                 ['completed', userChallengeId]
             );
 
             // Award XP
-            await db.query(
+            await dbClient.query(
                 'UPDATE users SET xp = xp + $1 WHERE id = $2',
                 [challenge.xp_reward, challenge.user_id]
             );
 
             // Award completion badge
             const badgeName = `Challenge Champion: ${challenge.title}`;
-            const existingBadge = await db.query(
+            const existingBadge = await dbClient.query(
                 'SELECT id FROM badges WHERE user_id = $1 AND badge_name = $2',
                 [challenge.user_id, badgeName]
             );
 
             if (existingBadge.rows.length === 0) {
-                await db.query(
+                await dbClient.query(
                     'INSERT INTO badges (user_id, badge_name) VALUES ($1, $2)',
                     [challenge.user_id, badgeName]
                 );
@@ -152,7 +158,7 @@ async function checkChallengeCompletion(userChallengeId) {
         // Check if duration period has passed without completing
         if (daysSinceStart >= challenge.duration_days) {
             // FAILED: Duration passed but didn't maintain streak
-            await db.query(
+            await dbClient.query(
                 'UPDATE user_challenges SET status = $1, failed_at = NOW() WHERE id = $2',
                 ['failed', userChallengeId]
             );
@@ -183,16 +189,18 @@ async function checkChallengeCompletion(userChallengeId) {
  * Checks all active habits for a user and updates their status
  * @param {number} userId - The user ID
  */
-async function checkAllUserHabits(userId) {
+async function checkAllUserHabits(userId, client) {
+    const dbClient = getDbClient(client);
+
     try {
-        const habitsResult = await db.query(
+        const habitsResult = await dbClient.query(
             'SELECT id FROM habits WHERE user_id = $1 AND status = $2',
             [userId, 'in_progress']
         );
 
         const results = [];
         for (const habit of habitsResult.rows) {
-            const result = await checkHabitCompletion(habit.id);
+            const result = await checkHabitCompletion(habit.id, dbClient);
             if (result.updated) {
                 results.push({ habitId: habit.id, ...result });
             }
@@ -209,16 +217,18 @@ async function checkAllUserHabits(userId) {
  * Checks all active challenges for a user and updates their status
  * @param {number} userId - The user ID
  */
-async function checkAllUserChallenges(userId) {
+async function checkAllUserChallenges(userId, client) {
+    const dbClient = getDbClient(client);
+
     try {
-        const challengesResult = await db.query(
+        const challengesResult = await dbClient.query(
             'SELECT id FROM user_challenges WHERE user_id = $1 AND status = $2',
             [userId, 'in_progress']
         );
 
         const results = [];
         for (const challenge of challengesResult.rows) {
-            const result = await checkChallengeCompletion(challenge.id);
+            const result = await checkChallengeCompletion(challenge.id, dbClient);
             if (result.updated) {
                 results.push({ userChallengeId: challenge.id, ...result });
             }

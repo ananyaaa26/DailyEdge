@@ -203,23 +203,26 @@ exports.toggleChallengeStatus = async (req, res, next) => {
     const challengeId = req.params.id;
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
     const userId = req.session.user.id;
+    const client = await db.getClient();
 
     try {
+        await client.query('BEGIN');
+
         // Get the user_challenge record
-        const userChallengeResult = await db.query(
-            'SELECT id, status FROM user_challenges WHERE user_id = $1 AND challenge_id = $2',
+        const userChallengeResult = await client.query(
+            'SELECT id, status FROM user_challenges WHERE user_id = $1 AND challenge_id = $2 FOR UPDATE',
             [userId, challengeId]
         );
 
         if (userChallengeResult.rows.length === 0) {
-            return res.status(404).json({ error: 'Challenge not found or not joined' });
+            throw new Error('Challenge not found or not joined');
         }
 
         const userChallenge = userChallengeResult.rows[0];
         const userChallengeId = userChallenge.id;
 
         // Check if log for today exists
-        const existingLog = await db.query(
+        const existingLog = await client.query(
             'SELECT id, status FROM challenge_logs WHERE user_challenge_id = $1 AND date = $2',
             [userChallengeId, today]
         );
@@ -233,10 +236,10 @@ exports.toggleChallengeStatus = async (req, res, next) => {
             newStatus = currentStatus === 'done' ? 'not done' : 'done';
             wasCompleted = currentStatus === 'done';
             
-            await db.query('UPDATE challenge_logs SET status = $1 WHERE id = $2', [newStatus, existingLog.rows[0].id]);
+            await client.query('UPDATE challenge_logs SET status = $1 WHERE id = $2', [newStatus, existingLog.rows[0].id]);
         } else {
             // Insert new log as completed
-            await db.query(
+            await client.query(
                 'INSERT INTO challenge_logs (user_challenge_id, date, status) VALUES ($1, $2, $3)',
                 [userChallengeId, today, newStatus]
             );
@@ -245,7 +248,7 @@ exports.toggleChallengeStatus = async (req, res, next) => {
         // Award or remove XP based on completion status
         if (newStatus === 'done' && !wasCompleted) {
             // Calculate current streak for this challenge
-            const streak = await calculateChallengeStreak(userChallengeId);
+            const streak = await calculateChallengeStreak(userChallengeId, client);
             
             // Get streak multiplier
             const multiplier = getStreakMultiplier(streak);
@@ -255,46 +258,74 @@ exports.toggleChallengeStatus = async (req, res, next) => {
             const earnedXP = Math.round(baseXP * multiplier);
             
             // Award XP with streak bonus
-            await db.query('UPDATE users SET xp = xp + $1 WHERE id = $2', [earnedXP, userId]);
-            
-            // Invalidate caches after XP update
-            await invalidateUserCache(userId);
-            
-            // Invalidate leaderboard cache when challenge is completed
-            await leaderboardController.invalidateLeaderboardCache();
-            
+            await client.query('UPDATE users SET xp = xp + $1 WHERE id = $2', [earnedXP, userId]);
+
             // Check for streak milestones and award badges + bonus XP
+            const badgeReward = await awardBadges(userId, streak, client);
+
+            await client.query('COMMIT');
+
             try {
-                const badgeReward = await awardBadges(userId, streak);
-                
-                res.json({ 
-                    success: true, 
-                    status: newStatus,
-                    completed: newStatus === 'done',
-                    xpEarned: earnedXP,
-                    streak: streak,
-                    multiplier: multiplier,
-                    badgeReward: badgeReward
-                });
-                return;
-            } catch (streakErr) {
-                console.error('Error calculating challenge streak:', streakErr);
+                // Invalidate caches after XP update
+                await invalidateUserCache(userId);
+
+                // Invalidate leaderboard cache when challenge is completed
+                await leaderboardController.invalidateLeaderboardCache();
+            } catch (postCommitErr) {
+                console.error('Post-commit challenge completion work failed:', postCommitErr);
             }
+
+            return res.json({ 
+                success: true, 
+                status: newStatus,
+                completed: newStatus === 'done',
+                xpEarned: earnedXP,
+                streak: streak,
+                multiplier: multiplier,
+                badgeReward: badgeReward
+            });
         } else if (newStatus === 'not done' && wasCompleted) {
             // Uncompleted - remove XP (but don't go below 0)
-            await db.query('UPDATE users SET xp = GREATEST(xp - 15, 0) WHERE id = $1', [userId]);
-            
-            // Invalidate caches after XP change
-            await invalidateUserCache(userId);
+            await client.query('UPDATE users SET xp = GREATEST(xp - 15, 0) WHERE id = $1', [userId]);
+
+            await client.query('COMMIT');
+
+            try {
+                // Invalidate caches after XP change
+                await invalidateUserCache(userId);
+                await leaderboardController.invalidateLeaderboardCache();
+            } catch (postCommitErr) {
+                console.error('Post-commit challenge uncomplete work failed:', postCommitErr);
+            }
+
+            return res.json({ 
+                success: true, 
+                status: newStatus,
+                completed: newStatus === 'done'
+            });
         }
 
-        res.json({ 
+        await client.query('COMMIT');
+
+        return res.json({ 
             success: true, 
             status: newStatus,
             completed: newStatus === 'done'
         });
     } catch (err) {
+        try {
+            await client.query('ROLLBACK');
+        } catch (rollbackErr) {
+            console.error('Rollback failed:', rollbackErr);
+        }
+
         console.error('Toggle challenge error:', err);
+        if (err.message === 'Challenge not found or not joined') {
+            return res.status(404).json({ error: 'Challenge not found or not joined' });
+        }
+
         res.status(500).json({ error: 'An error occurred while updating the challenge' });
+    } finally {
+        client.release();
     }
 };

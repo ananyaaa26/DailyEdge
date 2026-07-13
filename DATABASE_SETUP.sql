@@ -131,6 +131,7 @@ CREATE TABLE IF NOT EXISTS badges (
 -- Create indexes
 CREATE INDEX IF NOT EXISTS idx_badges_user_id ON badges(user_id);
 CREATE INDEX IF NOT EXISTS idx_badges_earned_at ON badges(earned_at);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_badges_user_badge_unique ON badges(user_id, badge_name);
 
 -- =====================================================
 -- TABLE 8: ADMIN USERS
