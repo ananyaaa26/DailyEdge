@@ -328,6 +328,9 @@
 <script type="application/json" id="categoryStatsJson">
 <%- JSON.stringify(categoryStats) %>
 </script>
+<script type="application/json" id="analyticsMetaJson">
+<%- JSON.stringify({ totalHabits }) %>
+</script>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
@@ -511,9 +514,11 @@ try {
     
     const chartData = JSON.parse(chartDataElement.textContent);
     const categoryStats = JSON.parse(categoryStatsElement.textContent);
+    const analyticsMetaElement = document.getElementById('analyticsMetaJson');
+    const analyticsMeta = analyticsMetaElement ? JSON.parse(analyticsMetaElement.textContent) : {};
     
     // Get total habits count for Y-axis max
-    const totalHabitsCount = <%= totalHabits %>;
+    const totalHabitsCount = analyticsMeta.totalHabits || 0;
     
     // Completion Trend Chart
     const completionCanvas = document.getElementById('completionChart');
