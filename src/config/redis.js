@@ -1,6 +1,6 @@
 const { createClient } = require('redis');
 
-const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+const redisUrl = process.env.REDIS_URL;
 
 // Configure client with TLS support for Upstash
 const redisClient = createClient({
